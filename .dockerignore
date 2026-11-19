@@ -1,0 +1,22 @@
+# Prevent accidental disclosure and large, irrelevant build contexts.
+.git
+.github
+.env
+.env.*
+**/.env
+**/.env.*
+**/node_modules
+**/build
+**/dist
+**/.gradle
+**/.kotlin
+**/.idea
+**/coverage
+**/*.apk
+**/*.aab
+**/*.keystore
+**/*.jks
+apps/android
+docs
+scripts
+*.log
