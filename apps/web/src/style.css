@@ -46,6 +46,14 @@ p{line-height:1.55}
 .stats>div{background:var(--gc-surface);border:1px solid var(--gc-outline-soft);border-radius:var(--gc-radius-md);padding:20px 24px;display:flex;flex-direction:column;gap:12px}
 .stats span{color:var(--gc-text-soft);font-size:.82rem}
 .stats strong{font-size:clamp(1rem,1.8vw,1.5rem);letter-spacing:-.03em}
+.trip-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.trip-card{border:1px solid var(--gc-outline-soft);border-radius:var(--gc-radius-md);padding:16px;background:var(--gc-surface-tonal)}
+.trip-card-title{display:flex;align-items:center;gap:12px}
+.trip-card-title>div{display:flex;flex-direction:column;gap:4px}
+.trip-card-title strong{font-size:.86rem}
+.trip-card-title small{color:var(--gc-text-soft);font-size:.75rem}
+.trip-metrics{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;font-size:.74rem;color:var(--gc-text-soft)}
+.trip-metrics strong{color:var(--gc-text);font-size:1rem}
 .stats small{color:var(--gc-text-soft);font-size:.76rem}
 .map-wrap,.panel{background:var(--gc-surface);border:1px solid var(--gc-outline-soft);border-radius:var(--gc-radius-lg);overflow:hidden;margin-bottom:22px}
 .panel{padding:24px}

@@ -10,7 +10,7 @@ Status as of initial development source, not promised delivery dates.
 | P0 | Reproducible CI & source code licensing | Valid clean builds, wrapper verification, license and upstream attribution readback |
 | P1 | Stable secure remote hosting | Validated HTTPS, reverse-proxy hardening, backup/restore rehearsal, risk assessment |
 | P1 | Continuous tracking (opt-in) | Persistent notification, Android foreground service permission, battery tests, prominent pause/kill switch, abuse review |
-| P1 | Visits and trips (Dawarich-style) | Deterministic PostGIS trip segmentation, privacy-preserving tests |
+| P1 | Visits and trips (Dawarich-style) | Initial personal read-only heuristic trip summaries are in development; remaining acceptance: privacy-preserving visit/stay grouping, map matching, PostGIS trip analysis and real-world validation |
 | P1 | Geofences and arrival/departure | Explicit per-person consent, per-circle granular controls, no covert notifications |
 | P1 | Vehicle and GPS-device tracking (Traccar-style) | Audited Traccar device-protocol bridge with scoped auth, licensing compatibility and abuse controls |
 | P2 | Family safety features | Distress opt-in, fake location/stale-state clarity, anti-stalking UX and harm minimization |

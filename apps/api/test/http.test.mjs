@@ -21,7 +21,7 @@ test('health is minimal, does not disclose server configuration', () => withServ
   assert.equal(res.headers.get('cache-control'), 'no-store');
 }));
 test('all private APIs require a bearer session', () => withServer(async origin => {
-  for (const path of ['/v1/me','/v1/locations','/v1/locations/latest','/v1/circles','/v1/export/geojson']) {
+  for (const path of ['/v1/me','/v1/locations','/v1/trips','/v1/locations/latest','/v1/circles','/v1/export/geojson']) {
     const res = await fetch(origin + path);
     assert.equal(res.status, 401, path);
     assert.equal((await res.json()).error, 'Authentication required');

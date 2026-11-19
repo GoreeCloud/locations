@@ -103,6 +103,8 @@ function Dashboard({ token, onLogout }) {
   const [circles,setCircles] = useState([]);
   const [latest,setLatest] = useState([]);
   const [history,setHistory] = useState([]);
+  const [trips,setTrips] = useState([]);
+  const [tripsTruncated,setTripsTruncated] = useState(false);
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
   const [tiles,setTiles] = useState(false);
@@ -115,10 +117,11 @@ function Dashboard({ token, onLogout }) {
     try { await operation(); } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
   async function refresh() {
-    const [account, group, current, old] = await Promise.all([
-      api('/v1/me',token),api('/v1/circles',token),api('/v1/locations/latest',token),api('/v1/locations?limit=500',token)
+    const [account, group, current, old, journeys] = await Promise.all([
+      api('/v1/me',token),api('/v1/circles',token),api('/v1/locations/latest',token),api('/v1/locations?limit=500',token),api('/v1/trips',token)
     ]);
     setMe(account.account); setCircles(group.circles); setLatest(current.positions); setHistory(old.positions);
+    setTrips(journeys.trips); setTripsTruncated(journeys.truncated);
   }
   useEffect(() => { refresh().catch(err => setError(err.message)); }, [token]);
   async function checkIn() {
@@ -162,6 +165,17 @@ function Dashboard({ token, onLogout }) {
         <div className="panel"><h2>Last known positions</h2>{!latest.length?<p className="empty">No location is visible yet. Enable recording in Privacy and check in when you choose.</p>:<div className="entry-list">{latest.map(p=><div key={p.user_id} className="entry"><span className="person">{p.user_id===me.id?'Y':p.email[0].toUpperCase()}</span><div><strong>{p.user_id===me.id?'You':p.email}</strong><small>{fmt(p.captured_at)}</small></div><span className="coords">{Number(p.latitude).toFixed(4)}, {Number(p.longitude).toFixed(4)}</span></div>)}</div>}</div>
       </>}
       {tab==='history' && <><div className="page-head"><div><span className="eyebrow">PRIVATE JOURNAL</span><h1>Your timeline</h1><p>Your history stays available to you, even when circle sharing is disabled.</p></div><button className="button secondary" onClick={()=>execute(downloadExport)} disabled={busy}>Export GeoJSON</button></div><div className="panel"><h2>Recent positions</h2><p className="muted">Showing up to 500 of your latest positions from the past 30 days.</p>{history.length?<div className="entry-list">{history.map(p=><div className="entry" key={p.id}><span className="person">⌁</span><div><strong>{fmt(p.captured_at)}</strong><small>{p.source} {p.accuracy_m!=null?'· ±'+Math.round(p.accuracy_m)+' m':''}</small></div><span className="coords">{Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}</span></div>)}</div>:<p className="empty">No history recorded in the past 30 days.</p>}</div></>}
+      {tab==='history' && <section className="panel" aria-label="Estimated trips">
+        <h2>Estimated trips</h2>
+        <p className="muted">Trips are calculated locally on your server from your saved points. Distances are estimates, not map-matched routes or arrival confirmations.</p>
+        {tripsTruncated && <p className="muted" role="status">Only the latest 3,000 points were analyzed. Older trips may be omitted.</p>}
+        {trips.length ? <div className="trip-cards">
+          {trips.map((t,i)=><article className="trip-card" key={t.startedAt+'-'+i}>
+            <div className="trip-card-title"><span className="person" aria-hidden="true">⌁</span><div><strong>{fmt(t.startedAt)}</strong><small>to {fmt(t.endedAt)}</small></div></div>
+            <div className="trip-metrics"><span><strong>{(t.distanceMeters/1000).toFixed(1)}</strong> km estimated</span><span><strong>{Math.round(t.durationSeconds/60)}</strong> min</span><span><strong>{t.pointCount}</strong> fixes</span></div>
+          </article>)}
+        </div> : <p className="empty">No trips estimated yet. Several accurate, timestamped movement points are needed.</p>}
+      </section>}
       {tab==='circles' && <><div className="page-head"><div><span className="eyebrow">TRUSTED PEOPLE</span><h1>Circles</h1><p>Sharing is off by default for every member. A circle cannot turn it on for you.</p></div></div>
         <div className="two-col">
           <section className="panel"><h2>Your circles</h2>{circles.map(c=><div className="circle-card" key={c.id}><div><strong>{c.name}</strong><small>{c.role==='owner'?'Circle owner':'Member'}</small></div><button className={c.sharing_enabled?'button subtle active-share':'button subtle'} disabled={busy} onClick={()=>execute(async()=>{await api('/v1/circles/'+c.id+'/sharing',token,'PATCH',{enabled:!c.sharing_enabled}); await refresh();})}>{c.sharing_enabled?'Sharing on · Disable':'Sharing off · Enable'}</button>{c.role==='owner'&&<button className="button secondary" disabled={busy} onClick={()=>execute(async()=>{const result=await api('/v1/circles/'+c.id+'/invites',token,'POST',{});setGeneratedInvite(result.inviteToken);})}>Create invite</button>}{c.role!=='owner'&&<button className="button secondary" disabled={busy} onClick={()=>execute(async()=>{await api('/v1/circles/'+c.id+'/leave',token,'POST',{});await refresh();})}>Leave</button>}</div>)}{!circles.length&&<p className="empty">Create or join a circle to begin.</p>}{generatedInvite&&<div className="invite"><strong>One-time invitation · 24 hours</strong><code>{generatedInvite}</code><button className="button secondary" onClick={()=>navigator.clipboard.writeText(generatedInvite).then(()=>setNotice('Invitation copied.'),()=>setError('Copy failed. Select the token manually.'))}>Copy token</button></div>}</section>

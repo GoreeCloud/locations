@@ -2,7 +2,7 @@
 
 **Development implementation, not a certified privacy product.**
 
-GoreeCloud Locations records precise locations which can expose home addresses, relationships and personal routines. Its safe baseline is **no collection and no sharing**. The Android client does not request background location or transmit passively; the web browser initiates a one-off check-in only when asked. The server separately requires authenticated account-level recording consent.
+GoreeCloud Locations records precise locations which can expose home addresses, relationships and personal routines. Its safe baseline is **no collection and no sharing**. The Android client does not request background location or transmit passively; the web browser initiates a one-off check-in only when asked. The server separately requires authenticated account-level recording consent. The optional estimated-trip endpoint analyzes only the authenticated person's own already-stored points, entirely on the self-hosted server; it makes no external geocoding or routing requests.
 
 Each new circle member starts with **sharing disabled**, including the creator. Only the person sharing can enable it, per circle. Membership or an owner's invitation does not grant broad access. Server permissions are checked on every private history and latest-position request; check-ins cannot write to another member's account. An explicit off switch disables further recording and visibility to other members. Turning recording off does **not** delete past entries; the account owner can export GeoJSON or erase history.
 

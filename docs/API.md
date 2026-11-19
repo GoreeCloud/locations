@@ -15,6 +15,7 @@ Base path via the web proxy: `/api/v1`. Direct API server local development uses
 | POST | `/v1/locations/batch` | `{positions: [...]}` up to 500 points, accepted only when recording enabled |
 | GET | `/v1/locations?userId=&from=&until=&limit=` | Up to 1000, default 500 recent points from past 30 days, owner or presently consented circle member only |
 | GET | `/v1/locations/latest` | Most recent personal and consenting shared member positions |
+| GET | `/v1/trips?from=&until=&points=` | Heuristic trip summaries from **current account only**, default prior 30 days/3,000 points, max 10,000. Returns estimated distance/duration, lines and truncation flag |
 | GET | `/v1/export/geojson` | Account's personal GeoJSON, limit 50k points, returns 413 if exceeded |
 | DELETE | `/v1/me/locations` | Permanently erase all stored points for account |
 | GET | `/v1/circles` | Circle membership and own sharing state |
@@ -36,4 +37,4 @@ Owner bootstrap requires `BOOTSTRAP_TOKEN` at least 32 characters and safe accou
 - GeoJSON importer uses each Point feature's coordinates [longitude, latitude] and one of `capturedAt`, `timestamp`, `time`, `recorded_at`; epoch-ms numeric timestamp accepted. Missing/invalid features are skipped.
 - Traccar report adapter calls GET `/api/reports/route?deviceId=...&from=...&to=...` with upstream Basic Auth over HTTPS. It reads Traccar `latitude`, `longitude`, `fixTime` / `deviceTime` / `serverTime`. It never transmits Traccar credentials to GoreeCloud API.
 
-The API has no OpenAPI generator yet and is not a stable public contract.
+Trip inference uses a deterministic haversine-based heuristic: movements below accuracy thresholds, gaps over 45 minutes, and physically implausible jumps are not considered continuous travel. The response includes `startedAt`, `endedAt`, estimated `distanceMeters`, `durationSeconds`, `pointCount`, a GeoJSON LineString, `sampledPoints`, and `truncated`. It is not a map-matched route, family-sharing endpoint, arrival proof, or safety system.\n\nThe API has no OpenAPI generator yet and is not a stable public contract.
