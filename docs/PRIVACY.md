@@ -1,0 +1,13 @@
+# Privacy, consent, and personal safety
+
+**Development implementation, not a certified privacy product.**
+
+GoreeCloud Locations records precise locations which can expose home addresses, relationships and personal routines. Its safe baseline is **no collection and no sharing**. The Android client does not request background location or transmit passively; the web browser initiates a one-off check-in only when asked. The server separately requires authenticated account-level recording consent.
+
+Each new circle member starts with **sharing disabled**, including the creator. Only the person sharing can enable it, per circle. Membership or an owner's invitation does not grant broad access. Server permissions are checked on every private history and latest-position request; check-ins cannot write to another member's account. An explicit off switch disables further recording and visibility to other members. Turning recording off does **not** delete past entries; the account owner can export GeoJSON or erase history.
+
+Server default retention is 30 days; owner may choose 1–365 days. Retention cleanup runs at startup and hourly, but database backups may persist until separately expired. No ads or tracker SDK are included; optional public map tiles require an affirmative toggle and reveal the visitor IP to OSM tiles. Avoid publishing a hosted instance until HTTPS, access controls, private backups, secure login and regular independent security review are configured.
+
+**Abuse design:** No stealth mode, unconsented tracking, geofence alerts or background collection. Include clear recording UI and prevent passive tracking. Additional safe-family features need consent-first review and a means for each member to immediately stop sharing or leave independently of another member. This is not an emergency location or distress-monitoring system. Do not rely on it to locate a person in danger.
+
+**Threat model follow-ups:** account takeover, social engineering invitations, forced consent, leaked location exports, database access, cross-circle access, server access logging, malicious reverse proxies, metadata from map tile access, compromised Android devices, API brute-force, privacy retention in backups, eventual stale data, and confidentiality of emergency-related data.

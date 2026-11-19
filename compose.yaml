@@ -1,0 +1,50 @@
+name: goreecloud-locations
+services:
+  database:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: locations
+      POSTGRES_USER: locations
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set_POSTGRES_PASSWORD_in_env}
+    volumes:
+      - locations-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U locations -d locations"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks: [private]
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://locations:${POSTGRES_PASSWORD:?Set_POSTGRES_PASSWORD_in_env}@database:5432/locations
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?Set_BOOTSTRAP_TOKEN_in_env}
+      WEB_ORIGIN: ${WEB_ORIGIN:-}
+      PORT: "8787"
+      NODE_ENV: production
+    depends_on:
+      database: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [private]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports: ["127.0.0.1:${PORT:-8080}:80"]
+    depends_on: [api]
+    restart: unless-stopped
+    networks: [private]
+    read_only: true
+    tmpfs: ["/var/cache/nginx", "/var/run", "/tmp"]
+    security_opt: ["no-new-privileges:true"]
+networks:
+  private:
+    driver: bridge
+volumes:
+  locations-db:
