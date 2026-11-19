@@ -136,6 +136,26 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     // A logged-out bearer token is unusable, including for history.
     await call('POST','/v1/auth/logout',aliceToken,null,200);
     await call('GET','/v1/me',aliceToken,null,401);
+
+    // Deletion requires current password, exact confirmation, and no shared owned circles.
+    const currentAliceToken = (await call('POST','/v1/auth/login',null,{email:aliceEmail,password},200)).payload.token;
+    await call('DELETE','/v1/me',currentAliceToken,{password},400);
+    await call('DELETE','/v1/me',currentAliceToken,{password:'incorrect-password-1234',confirmation:'DELETE ACCOUNT'},401);
+    await call('DELETE','/v1/me',currentAliceToken,{password,confirmation:'DELETE ACCOUNT'},409);
+    await call('DELETE','/v1/circles/'+circleId,bobToken,{confirmName:'Synthetic family'},403);
+    await call('DELETE','/v1/circles/'+circleId,currentAliceToken,{confirmName:'wrong name'},400);
+    await call('DELETE','/v1/circles/'+circleId,currentAliceToken,{confirmName:'Synthetic family'},200);
+    assert.equal((await call('GET','/v1/circles',bobToken,null,200)).payload.circles.length,0);
+    assert.ok((await db.query('SELECT COUNT(*)::int AS n FROM positions WHERE account_id=$1',[bobId])).rows[0].n >= 1);
+    await call('DELETE','/v1/circles/'+separateCircle,currentAliceToken,{confirmName:'Separate circle'},200);
+    assert.equal((await call('GET','/v1/circles',charlieToken,null,200)).payload.circles.length,0);
+    await call('DELETE','/v1/me',currentAliceToken,{password,confirmation:'DELETE ACCOUNT'},200);
+    await call('GET','/v1/me',currentAliceToken,null,401);
+    await call('POST','/v1/auth/login',null,{email:aliceEmail,password},401);
+    assert.ok((await call('GET','/v1/locations',bobToken,null,200)).payload.positions.length>=1);
+    await call('DELETE','/v1/me',bobToken,{password,confirmation:'DELETE ACCOUNT'},200);
+    await call('GET','/v1/me',bobToken,null,401);
+    assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM positions WHERE account_id=$1',[bobId])).rows[0].n,0);
   } finally {
     if (server.listening) await new Promise(resolve => server.close(resolve));
     try {

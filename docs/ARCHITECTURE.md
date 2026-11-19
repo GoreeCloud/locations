@@ -27,7 +27,7 @@ All first-party source, vendored design tokens, builds, container definitions an
 - Not a full Traccar protocol receiver: only Traccar REST route-import adapter; no GPS tracker TCP/UDP device-protocol service imported. Traccar itself is not embedded or running.
 - Not a Dawarich fork: GeoJSON interchange and initial deterministic, account-private trip estimates are supported; visit analytics, map matching, heatmaps, AI classification and full Dawarich analysis are not present.
 - The server uses a simple initial SQL schema migration; future changes need versioned, transactional migrations.
-- Account deletion, session management UI, circle ownership transfer/removal, per-device API tokens, quotas, rate-limit persistence, encryption-at-rest key management, audit logs, backup restore and hardened public deployment remain unimplemented.
+- Password-confirmed account deletion and owner-confirmed circle deletion are implemented, but session management UI, circle ownership transfer, per-device API tokens, quotas, rate-limit persistence, encryption-at-rest key management, audit logs, backup restore and hardened public deployment remain unimplemented.
 - Android shows a native list, not yet a native embedded map. Background collection is intentionally absent.
 - Web session is volatile (RAM) and must be reauthenticated on page reload. No remote login cookie by default.
 - External OSM tiles are OPTIONAL; tile requests expose the requesting IP to an outside provider. A self-hosted vector tile service is preferred for fully private maps.
