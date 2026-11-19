@@ -18,6 +18,7 @@ Base path via the web proxy: `/api/v1`. Direct API server local development uses
 | GET | `/v1/trips?from=&until=&points=` | Heuristic trip summaries from **current account only**, default prior 30 days/3,000 points, max 10,000. Returns estimated distance/duration, lines and truncation flag |
 | GET | `/v1/export/geojson` | Account's personal GeoJSON, limit 50k points, returns 413 if exceeded |
 | DELETE | `/v1/me/locations` | Permanently erase all stored points for account |
+| DELETE | `/v1/me` | Permanently delete authenticated account, own positions and sessions; requires `password` and `confirmation: "DELETE ACCOUNT"`; refuses while owned circles have other members |
 | GET | `/v1/circles` | Circle membership and own sharing state |
 | POST | `/v1/circles` | Create circle with `name`, owner sharing defaults false |
 | GET | `/v1/circles/:id/members` | View members when in circle |
@@ -25,6 +26,7 @@ Base path via the web proxy: `/api/v1`. Direct API server local development uses
 | POST | `/v1/circles/:id/invites` | Owner creates 24-hour one-use token |
 | POST | `/v1/invites/accept` | Existing authenticated user accepts invitation |
 | POST | `/v1/circles/:id/leave` | Non-owner exits membership |
+| DELETE | `/v1/circles/:id` | Owner only: remove circle membership/invites but not other people's personal histories; requires exact `confirmName` |
 
 ## Models and boundaries
 

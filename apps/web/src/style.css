@@ -82,6 +82,8 @@ label{font-size:.83rem;font-weight:670;display:flex;flex-direction:column;gap:8p
 input:not([type=checkbox]),select{height:44px;border:1px solid var(--gc-outline-soft);border-radius:11px;padding:10px 12px;background:var(--gc-surface);color:var(--gc-text);width:100%}
 select{width:auto;min-width:110px}
 .panel form{margin:12px 0 22px}
+.delete-account-form{max-width:480px;display:flex;flex-direction:column;gap:3px}
+.delete-account-form .button{align-self:flex-start}
 .panel hr{border:0;border-top:1px solid var(--gc-outline-soft);margin:26px 0}
 .setting{padding:22px 0;border-bottom:1px solid var(--gc-outline-soft);display:flex;align-items:center;justify-content:space-between;gap:18px}
 .setting:last-child{border-bottom:0}

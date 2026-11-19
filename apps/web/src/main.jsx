@@ -111,6 +111,8 @@ function Dashboard({ token, onLogout }) {
   const [circleName,setCircleName] = useState('');
   const [inviteToken,setInviteToken] = useState('');
   const [generatedInvite,setGeneratedInvite] = useState('');
+  const [deletePassword,setDeletePassword] = useState('');
+  const [deleteConfirmation,setDeleteConfirmation] = useState('');
   const [busy,setBusy] = useState(false);
   const execute = async (operation) => {
     setError(''); setNotice(''); setBusy(true);
@@ -135,6 +137,24 @@ function Dashboard({ token, onLogout }) {
     await refresh(); setNotice('Check-in saved on your server.');
   }
   async function changePrivacy(data) { await api('/v1/privacy',token,'PATCH',data); await refresh(); }
+  function removeCircle(circle) {
+    const answer = window.prompt('Permanently delete this circle and revoke every member’s circle access? Type its exact name to confirm:', '');
+    if (answer === null) return;
+    if (answer !== circle.name) { setError('Circle name did not match. No changes made.'); return; }
+    execute(async () => {
+      await api('/v1/circles/' + circle.id, token, 'DELETE', { confirmName: answer });
+      await refresh(); setGeneratedInvite(''); setNotice('Circle deleted. Member location histories are unaffected.');
+    });
+  }
+  function deleteAccount(e) {
+    e.preventDefault();
+    if (deleteConfirmation !== 'DELETE ACCOUNT') { setError('Type DELETE ACCOUNT to confirm.'); return; }
+    if (!window.confirm('Permanently delete this account, its stored locations, sessions, and remaining unshared circles? This cannot be undone.')) return;
+    execute(async () => {
+      await api('/v1/me', token, 'DELETE', { password: deletePassword, confirmation: deleteConfirmation });
+      setDeletePassword(''); setDeleteConfirmation(''); onLogout();
+    });
+  }
   async function downloadExport() {
     const data = await api('/v1/export/geojson',token);
     const blob = new Blob([JSON.stringify(data,null,2)], { type: 'application/geo+json' });
@@ -178,7 +198,7 @@ function Dashboard({ token, onLogout }) {
       </section>}
       {tab==='circles' && <><div className="page-head"><div><span className="eyebrow">TRUSTED PEOPLE</span><h1>Circles</h1><p>Sharing is off by default for every member. A circle cannot turn it on for you.</p></div></div>
         <div className="two-col">
-          <section className="panel"><h2>Your circles</h2>{circles.map(c=><div className="circle-card" key={c.id}><div><strong>{c.name}</strong><small>{c.role==='owner'?'Circle owner':'Member'}</small></div><button className={c.sharing_enabled?'button subtle active-share':'button subtle'} disabled={busy} onClick={()=>execute(async()=>{await api('/v1/circles/'+c.id+'/sharing',token,'PATCH',{enabled:!c.sharing_enabled}); await refresh();})}>{c.sharing_enabled?'Sharing on · Disable':'Sharing off · Enable'}</button>{c.role==='owner'&&<button className="button secondary" disabled={busy} onClick={()=>execute(async()=>{const result=await api('/v1/circles/'+c.id+'/invites',token,'POST',{});setGeneratedInvite(result.inviteToken);})}>Create invite</button>}{c.role!=='owner'&&<button className="button secondary" disabled={busy} onClick={()=>execute(async()=>{await api('/v1/circles/'+c.id+'/leave',token,'POST',{});await refresh();})}>Leave</button>}</div>)}{!circles.length&&<p className="empty">Create or join a circle to begin.</p>}{generatedInvite&&<div className="invite"><strong>One-time invitation · 24 hours</strong><code>{generatedInvite}</code><button className="button secondary" onClick={()=>navigator.clipboard.writeText(generatedInvite).then(()=>setNotice('Invitation copied.'),()=>setError('Copy failed. Select the token manually.'))}>Copy token</button></div>}</section>
+          <section className="panel"><h2>Your circles</h2>{circles.map(c=><div className="circle-card" key={c.id}><div><strong>{c.name}</strong><small>{c.role==='owner'?'Circle owner':'Member'}</small></div><button className={c.sharing_enabled?'button subtle active-share':'button subtle'} disabled={busy} onClick={()=>execute(async()=>{await api('/v1/circles/'+c.id+'/sharing',token,'PATCH',{enabled:!c.sharing_enabled}); await refresh();})}>{c.sharing_enabled?'Sharing on · Disable':'Sharing off · Enable'}</button>{c.role==='owner'&&<button className="button secondary" disabled={busy} onClick={()=>execute(async()=>{const result=await api('/v1/circles/'+c.id+'/invites',token,'POST',{});setGeneratedInvite(result.inviteToken);})}>Create invite</button>}{c.role==='owner'&&<button className="button danger" disabled={busy} onClick={()=>removeCircle(c)}>Delete circle</button>}{c.role!=='owner'&&<button className="button secondary" disabled={busy} onClick={()=>execute(async()=>{await api('/v1/circles/'+c.id+'/leave',token,'POST',{});await refresh();})}>Leave</button>}</div>)}{!circles.length&&<p className="empty">Create or join a circle to begin.</p>}{generatedInvite&&<div className="invite"><strong>One-time invitation · 24 hours</strong><code>{generatedInvite}</code><button className="button secondary" onClick={()=>navigator.clipboard.writeText(generatedInvite).then(()=>setNotice('Invitation copied.'),()=>setError('Copy failed. Select the token manually.'))}>Copy token</button></div>}</section>
           <section className="panel"><h2>Manage circles</h2><form onSubmit={e=>{e.preventDefault();execute(async()=>{await api('/v1/circles',token,'POST',{name:circleName});setCircleName('');await refresh();});}}><label>New circle name<input value={circleName} onChange={e=>setCircleName(e.target.value)} maxLength="80" placeholder="e.g. Family" required /></label><button className="button primary" disabled={busy}>Create circle</button></form><hr/><form onSubmit={e=>{e.preventDefault();execute(async()=>{await api('/v1/invites/accept',token,'POST',{inviteToken});setInviteToken('');await refresh();});}}><label>Join with invitation token<input type="password" value={inviteToken} onChange={e=>setInviteToken(e.target.value)} required /></label><button className="button secondary" disabled={busy}>Accept invitation</button></form></section>
         </div>
       </>}
@@ -186,6 +206,15 @@ function Dashboard({ token, onLogout }) {
         <div className="two-col"><div className="panel"><h2>Recording</h2><p className="muted">Your browser and Android device only send positions after explicit actions in this preview. This server setting must be enabled before any position is accepted.</p><div className="setting"><div><strong>Allow location history</strong><small>Default: off</small></div><button className={me.recording_enabled?'button primary':'button secondary'} disabled={busy} onClick={()=>execute(()=>changePrivacy({recordingEnabled:!me.recording_enabled}))}>{me.recording_enabled?'Disable recording':'Enable recording'}</button></div><div className="setting"><div><strong>Retention period</strong><small>Stored positions older than this are automatically removed.</small></div><select value={me.retention_days} disabled={busy} onChange={e=>execute(()=>changePrivacy({retentionDays:Number(e.target.value)}))}>{[1,7,14,30,90,180,365].map(v=><option key={v} value={v}>{v} days</option>)}</select></div></div>
         <div className="panel"><h2>Your data</h2><p className="muted">Export positions in GeoJSON or permanently erase saved location points. These controls do not delete account or circle membership.</p><div className="action-line"><button className="button secondary" disabled={busy} onClick={()=>execute(downloadExport)}>Export positions</button><button className="button danger" disabled={busy} onClick={()=>{if(window.confirm('Permanently delete ALL saved positions for this account?'))execute(async()=>{const r=await api('/v1/me/locations',token,'DELETE');await refresh();setNotice('Deleted '+r.deleted+' positions.');});}}>Delete all locations</button></div><p className="footnote">No third-party maps load without opt-in. Sharing toggles are managed per circle and can be withdrawn at any time.</p></div></div>
       </>}
+      {tab==='privacy' && <section className="panel" aria-label="Delete account">
+        <h2>Delete account permanently</h2>
+        <p className="muted">This erases your account, sessions, positions and memberships. Backup copies have their own retention period. If you own a circle with other members, delete that circle first; their personal histories are never erased by deleting your circle.</p>
+        <form className="delete-account-form" onSubmit={deleteAccount}>
+          <label>Current password<input autoComplete="current-password" type="password" value={deletePassword} onChange={e=>setDeletePassword(e.target.value)} required /></label>
+          <label>Type DELETE ACCOUNT to confirm<input autoComplete="off" value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} required /></label>
+          <button type="submit" className="button danger" disabled={busy || !deletePassword || deleteConfirmation!=='DELETE ACCOUNT'}>Permanently delete my account</button>
+        </form>
+      </section>}
       <footer className="app-footer">GoreeCloud Locations · Development preview <span>GoreeShield privacy · GoreeCloud Mesh integration · Wardveil security</span></footer>
     </main>
   </div>;

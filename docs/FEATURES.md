@@ -15,8 +15,8 @@ This registry distinguishes implemented **source-level functionality** from plan
 | Consent | Recording disabled by default; per-circle sharing disabled by default and controlled by each member | Server enforces individual consent and member scoping; full adversarial review remains |
 | History | PostgreSQL/PostGIS position records with ISO capture time, accuracy, source, bounded list queries and last-known positions | Isolated real-database tests and production restore are separate acceptance gates |
 | Trip estimates | Personal, read-only route summaries using deterministic local distance and time heuristics | Web History summary and account-only API; not map-matched navigation, geofencing, or verified arrival evidence |
-| Personal control | Configurable 1–365-day retention, GeoJSON export (up to 50,000 points), erase all saved points | Deleted points can remain in independently controlled backups until their retention expires |
-| Circles | Create circle, owner-generated single-use 24-hour invitation, join/leave (non-owner), member listing and sharing settings | Circle ownership transfer/deletion and advanced administration not yet supported |
+| Personal control | Configurable 1–365-day retention, GeoJSON export (up to 50,000 points), erase history, and password-confirmed account deletion | Previously backed-up data may remain until backup expiry; owned circles with other members must be explicitly deleted first |
+| Circles | Create circle, owner-generated single-use 24-hour invitation, join/leave (non-owner), member listing, sharing settings and explicit owner deletion | Circle deletion revokes membership and invitations, not members' personal history; ownership transfer and advanced administration remain planned |
 | Imports | Original GeoJSON/Dawarich-compatible point importer and Traccar REST route-report importer | Interoperability scripts, **not** an embedded upstream Dawarich or Traccar service |
 | Delivery | Reproducible npm workspace, Dockerfiles, Compose, API tests, Android Gradle wrapper, GitHub Actions | Alpha development source; no supported production deployment |
 

@@ -68,7 +68,7 @@ Imports are append-only and not yet deduplicated. Review files before upload. Li
 - Sharing **off** when a circle is created or joined. Circle membership alone does not reveal tracks; sharing is set by the individual.
 - No analytics SDK or cloud location tracking. Optional public map tiles are disabled until actively enabled in the browser.
 - Default retention **30 days**, configurable 1–365 days, hourly cleanup.
-- User-scoped export and permanently delete all saved positions.
+- User-scoped export, permanently erase saved positions, and password-confirmed permanent account deletion. Circle owners can delete a circle without deleting other members' personal locations.
 - Not suitable for life-critical emergency use, covert tracking, or production use without security and recovery review.
 
 See [features](docs/FEATURES.md), [objectives](docs/OBJECTIVES.md), [privacy](docs/PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [roadmap](docs/ROADMAP.md), [security](SECURITY.md), and [notices](NOTICE.md).

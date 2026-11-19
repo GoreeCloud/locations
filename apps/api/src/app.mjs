@@ -232,6 +232,27 @@ export function makeHandler(db, options) {
       const r = await db.query('DELETE FROM positions WHERE account_id=$1', [me.id]);
       return json(res, 200, { deleted: r.rowCount });
     }
+    if (req.method === 'DELETE' && path === '/v1/me') {
+      const input = await body(req);
+      if (input.confirmation !== 'DELETE ACCOUNT') throw new HttpError(400, 'Explicit account-deletion confirmation required');
+      await db.transaction(async q => {
+        const owner = await q('SELECT password_hash FROM accounts WHERE id=$1 FOR UPDATE', [me.id]);
+        if (!owner.rowCount || !(await verifyPassword(input.password,owner.rows[0].password_hash))) {
+          throw new HttpError(401, 'Current password is incorrect');
+        }
+        // Lock owned circles so a concurrently accepted invitation cannot lose membership silently.
+        await q('SELECT id FROM circles WHERE owner_id=$1 FOR UPDATE', [me.id]);
+        const shared = await q(
+          'SELECT EXISTS (SELECT 1 FROM circles c JOIN circle_members m ON m.circle_id=c.id WHERE c.owner_id=$1 AND m.account_id<>$1) AS has_members',
+          [me.id]
+        );
+        if (shared.rows[0].has_members) {
+          throw new HttpError(409, 'Delete your owned circles with other members before deleting your account');
+        }
+        await q('DELETE FROM accounts WHERE id=$1', [me.id]);
+      });
+      return json(res, 200, { deleted: true });
+    }
     if (req.method === 'GET' && path === '/v1/circles') {
       const r = await db.query(
         'SELECT c.id,c.name,c.owner_id,m.role,m.sharing_enabled FROM circles c JOIN circle_members m ON m.circle_id=c.id WHERE m.account_id=$1 ORDER BY c.name',
@@ -286,6 +307,21 @@ export function makeHandler(db, options) {
         return record.rows[0].circle_id;
       });
       return json(res, 200, { circleId: accepted, sharingEnabled: false });
+    }
+    const deleteCircle = /^\/v1\/circles\/([^/]+)$/.exec(path);
+    if (deleteCircle && req.method === 'DELETE') {
+      const circleId = uuid(deleteCircle[1]);
+      const input = await body(req);
+      await db.transaction(async q => {
+        const circle = await q('SELECT name,owner_id FROM circles WHERE id=$1 FOR UPDATE', [circleId]);
+        if (!circle.rowCount) throw new HttpError(404, 'Circle not found');
+        if (circle.rows[0].owner_id !== me.id) throw new HttpError(403, 'Only the owner can delete this circle');
+        if (typeof input.confirmName !== 'string' || input.confirmName !== circle.rows[0].name) {
+          throw new HttpError(400, 'Type the exact circle name to confirm deletion');
+        }
+        await q('DELETE FROM circles WHERE id=$1', [circleId]);
+      });
+      return json(res, 200, { deleted: true });
     }
     const leave = /^\/v1\/circles\/([^/]+)\/leave$/.exec(path);
     if (leave && req.method === 'POST') {
