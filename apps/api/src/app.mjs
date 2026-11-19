@@ -167,6 +167,11 @@ export function makeHandler(db, options) {
       if (!Array.isArray(points) || points.length < 1 || points.length > 500) throw new HttpError(400, 'Invalid positions batch');
       const values = points.map(pointInput);
       await db.transaction(async q => {
+        // Lock consent against a concurrent user revocation; stale session snapshots are never sufficient.
+        const consent = await q('SELECT recording_enabled FROM accounts WHERE id=$1 FOR UPDATE', [me.id]);
+        if (!consent.rowCount || consent.rows[0].recording_enabled !== true) {
+          throw new HttpError(403, 'Enable recording first');
+        }
         for (const p of values) {
           await q('INSERT INTO positions(account_id,latitude,longitude,accuracy_m,captured_at,source) VALUES ($1,$2,$3,$4,$5,$6)',
             [me.id,p.latitude,p.longitude,p.accuracyM,p.capturedAt,p.source]);
@@ -182,8 +187,8 @@ export function makeHandler(db, options) {
       const until = timestamp(url.searchParams.get('until'), new Date().toISOString());
       if (new Date(from) > new Date(until)) throw new HttpError(400, 'Invalid date range');
       const rows = await db.query(
-        'SELECT id,latitude,longitude,accuracy_m,captured_at,source FROM positions WHERE account_id=$1 AND captured_at BETWEEN $2 AND $3 ORDER BY captured_at DESC,id DESC LIMIT $4',
-        [owner,from,until,limit]
+        'SELECT p.id,p.latitude,p.longitude,p.accuracy_m,p.captured_at,p.source FROM positions p WHERE p.account_id=$1 AND p.captured_at BETWEEN $2 AND $3 AND (p.account_id=$5 OR EXISTS (SELECT 1 FROM accounts a JOIN circle_members sharing ON sharing.account_id=a.id JOIN circle_members viewer ON viewer.circle_id=sharing.circle_id WHERE a.id=p.account_id AND a.recording_enabled=true AND sharing.sharing_enabled=true AND viewer.account_id=$5)) ORDER BY p.captured_at DESC,p.id DESC LIMIT $4',
+        [owner,from,until,limit,me.id]
       );
       return json(res, 200, { userId: owner, positions: rows.rows });
     }

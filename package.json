@@ -9,6 +9,7 @@
     "dev:api": "npm run dev -w @goreecloud/locations-api",
     "dev:web": "npm run dev -w @goreecloud/locations-web",
     "test": "npm run test -w @goreecloud/locations-api",
+    "test:integration": "npm run test:integration -w @goreecloud/locations-api",
     "build": "npm run build -w @goreecloud/locations-web",
     "check": "npm run test && npm run build",
     "import:geojson": "node scripts/import-geojson.mjs",
