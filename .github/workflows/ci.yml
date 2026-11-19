@@ -16,6 +16,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm audit --omit=dev --audit-level=high
   android:
     runs-on: ubuntu-latest
     steps:
@@ -26,5 +27,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/wrapper-validation@v4
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
       - run: chmod +x apps/android/gradlew
       - run: cd apps/android && ./gradlew --no-daemon :app:assembleDebug
