@@ -70,7 +70,7 @@ Imports are append-only and not yet deduplicated. Review files before upload. Li
 - User-scoped export and permanently delete all saved positions.
 - Not suitable for life-critical emergency use, covert tracking, or production use without security and recovery review.
 
-See [privacy](docs/PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [roadmap](docs/ROADMAP.md), [security](SECURITY.md), and [notices](NOTICE.md).
+See [features](docs/FEATURES.md), [objectives](docs/OBJECTIVES.md), [privacy](docs/PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [roadmap](docs/ROADMAP.md), [security](SECURITY.md), and [notices](NOTICE.md).
 
 ## Licensing
 
