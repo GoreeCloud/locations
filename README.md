@@ -11,7 +11,7 @@
 - **API** — Node 22 HTTP REST, locally authenticated owner + invitation-only accounts, scrypt password storage, short-lived invitation tokens and 30-day opaque sessions.
 - **Database** — PostgreSQL 17/PostGIS, private account tracks, circle membership, explicit opt-in sharing, bounded retention and spatial index.
 - **Interop** — GeoJSON (Dawarich-style) importer, Traccar REST route report importer, GeoJSON export. No upstream Traccar/Dawarich code copied.
-- **DevOps** — all configs, Dockerfiles, Compose, migrations, test and CI workflows stored here.
+- **DevOps** — all configs, Dockerfiles, Compose, migrations, test and CI workflows stored here. Successful GitHub Actions runs publish a 7-day web build preview and an **unsigned-for-release, debug-signed Android test APK** under workflow artifacts, not as production releases.
 
 ## Get started (self-hosted development)
 
