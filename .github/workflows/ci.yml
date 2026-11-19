@@ -17,6 +17,12 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm audit --omit=dev --audit-level=high
+      - uses: actions/upload-artifact@v4
+        with:
+          name: locations-web-development-preview
+          path: apps/web/dist/
+          if-no-files-found: error
+          retention-days: 7
   android:
     runs-on: ubuntu-latest
     steps:
@@ -31,3 +37,9 @@ jobs:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
       - run: chmod +x apps/android/gradlew
       - run: cd apps/android && ./gradlew --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: locations-android-debug-apk
+          path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
