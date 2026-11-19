@@ -18,8 +18,8 @@
 Prerequisites: Git, Compose-compatible container engine, Node.js >=22 (for local web/API), and Android Studio/JDK17 for native builds.
 
 1. Clone the repo, then copy `.env.example` to `.env`.
-2. Generate **independent, strong random** secrets for `POSTGRES_PASSWORD` and `BOOTSTRAP_TOKEN`; the placeholders must never be deployed.
-3. Run `docker compose up --build` or compatible `podman compose up --build`.
+2. Generate **independent, strong random** secrets for `POSTGRES_PASSWORD` and `BOOTSTRAP_TOKEN`; the placeholders must never be deployed. Generate the database password as URL-safe hex or base64url because the API constructs a PostgreSQL connection URI.
+3. Run `docker compose up --build` or `podman compose up --build` **with a compatible Compose provider installed**. Podman alone does not include a Compose provider. Container images use explicit registry paths to work with rootless Podman.
 4. Open `http://localhost:8080` **on the same computer only**; select **First setup** and create your first owner account with the bootstrap token.
 5. Go to **Privacy**, explicitly enable recording, and click **Check in now** to request browser foreground location.
 6. Create a circle and generate a 24-hour, single-use invitation. New members still have recording and circle sharing disabled. They enable these independently.
