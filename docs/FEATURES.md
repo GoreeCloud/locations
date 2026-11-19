@@ -14,6 +14,7 @@ This registry distinguishes implemented **source-level functionality** from plan
 | Server identity | Owner bootstrap with server secret, invitation-only account registration, scrypt passwords, opaque bearer sessions | Local implementation only; not integrated with GoreeCloud Identity / OIDC / MFA |
 | Consent | Recording disabled by default; per-circle sharing disabled by default and controlled by each member | Server enforces individual consent and member scoping; full adversarial review remains |
 | History | PostgreSQL/PostGIS position records with ISO capture time, accuracy, source, bounded list queries and last-known positions | Isolated real-database tests and production restore are separate acceptance gates |
+| Trip estimates | Personal, read-only route summaries using deterministic local distance and time heuristics | Web History summary and account-only API; not map-matched navigation, geofencing, or verified arrival evidence |
 | Personal control | Configurable 1–365-day retention, GeoJSON export (up to 50,000 points), erase all saved points | Deleted points can remain in independently controlled backups until their retention expires |
 | Circles | Create circle, owner-generated single-use 24-hour invitation, join/leave (non-owner), member listing and sharing settings | Circle ownership transfer/deletion and advanced administration not yet supported |
 | Imports | Original GeoJSON/Dawarich-compatible point importer and Traccar REST route-report importer | Interoperability scripts, **not** an embedded upstream Dawarich or Traccar service |
