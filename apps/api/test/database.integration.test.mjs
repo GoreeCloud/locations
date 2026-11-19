@@ -118,12 +118,30 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     assert.equal((await call('DELETE','/v1/me/locations',aliceToken,null,200)).payload.deleted,1);
     assert.equal((await call('GET','/v1/locations',aliceToken,null,200)).payload.positions.length,0);
     assert.equal((await call('GET','/v1/locations',bobToken,null,200)).payload.positions.length,1);
+    // Trip inference is scoped to the requesting account, not a shared circle.
+    const startMs = Date.now() - 20 * 60000;
+    const samples = [0, 300, 600].map((seconds,i) => ({
+      ...point,
+      latitude: 32.8 + i * 0.005,
+      longitude: -86.7 + i * 0.005,
+      capturedAt: new Date(startMs + seconds * 1000).toISOString()
+    }));
+    await call('POST','/v1/locations/batch',bobToken,{positions:samples},201);
+    const ownTrips = (await call('GET','/v1/trips',bobToken,null,200)).payload;
+    assert.ok(ownTrips.trips.length >= 1);
+    assert.ok(ownTrips.trips[0].distanceMeters > 500);
+    assert.equal(ownTrips.methodology,'heuristic-offline-v1');
+    assert.equal((await call('GET','/v1/trips',charlieToken,null,200)).payload.trips.length,0);
+    await call('GET','/v1/trips?userId='+bobId,charlieToken,null,400);
     // A logged-out bearer token is unusable, including for history.
     await call('POST','/v1/auth/logout',aliceToken,null,200);
     await call('GET','/v1/me',aliceToken,null,401);
   } finally {
     if (server.listening) await new Promise(resolve => server.close(resolve));
-    await db.query('DELETE FROM accounts WHERE email=ANY($1::text[])',[aliceEmail,bobEmail,charlieEmail]).catch(() => {});
-    await db.pool.end();
+    try {
+      await db.query('DELETE FROM accounts WHERE email=ANY($1::text[])',[[aliceEmail,bobEmail,charlieEmail]]);
+    } finally {
+      await db.pool.end();
+    }
   }
 });
