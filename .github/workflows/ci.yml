@@ -60,6 +60,10 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Enforce no covert Android location collection
+        run: |
+          ! grep -R -q 'android.permission.ACCESS_BACKGROUND_LOCATION' apps/android/app/src/main
+          ! grep -R -q 'android.permission.RECEIVE_BOOT_COMPLETED' apps/android/app/src/main
       - run: chmod +x apps/android/gradlew
       - run: cd apps/android && ./gradlew --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4

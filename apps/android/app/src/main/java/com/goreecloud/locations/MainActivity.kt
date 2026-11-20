@@ -2,6 +2,7 @@ package com.goreecloud.locations
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -44,7 +45,7 @@ import java.util.concurrent.TimeUnit
 private val http = OkHttpClient.Builder().followRedirects(false).callTimeout(20, TimeUnit.SECONDS).build()
 private val brand = Color(0xFF5146C8)
 private val lightSurface = Color(0xFFF6F7FB)
-private data class Session(val origin: String, val token: String)
+internal data class Session(val origin: String, val token: String)
 private enum class Screen(val label: String) { HOME("Home"), HISTORY("History"), CIRCLES("Circles"), PRIVACY("Privacy") }
 
 private fun validateOrigin(text: String): String {
@@ -60,7 +61,7 @@ private fun validateOrigin(text: String): String {
     }
     return input
 }
-private fun request(origin: String, token: String?, path: String, method: String = "GET", json: JSONObject? = null): JSONObject {
+internal fun request(origin: String, token: String?, path: String, method: String = "GET", json: JSONObject? = null): JSONObject {
     val url = validateOrigin(origin) + "/api/v1" + path
     val builder = Request.Builder().url(url).header("Accept", "application/json")
     if (token != null) builder.header("Authorization", "Bearer $token")
@@ -225,6 +226,26 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
             }, failure = { error = it })
         } else error = "Location access was not granted."
     }
+    val trackerPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        val allowed = granted[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            granted[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (allowed && account.bool("recording_enabled")) {
+            ForegroundTracking.session = session
+            try {
+                ContextCompat.startForegroundService(activity,
+                    Intent(activity, ForegroundTrackingService::class.java).setAction(ForegroundTrackingService.START))
+                message = "Foreground tracking requested. The notification provides a Stop control."
+            } catch (_: Exception) {
+                ForegroundTracking.session = null
+                error = "Android could not start foreground location tracking."
+            }
+        } else error = "Location permission and recording consent are required."
+    }
+    val trackerNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
+        if (allowed) trackerPermissions.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+        else error = "Notification permission is required to make tracking visible. No tracking started."
+    }
     Scaffold(
         topBar = {
             Surface(shadowElevation = 2.dp) {
@@ -236,7 +257,11 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
                     TextButton(onClick = {
                         runAction {
                             try { withContext(Dispatchers.IO) { request(session.origin, session.token, "/auth/logout", "POST", JSONObject()) } }
-                            finally { onLogout() }
+                            finally {
+                                activity.stopService(Intent(activity, ForegroundTrackingService::class.java))
+                                ForegroundTracking.session = null
+                                onLogout()
+                            }
                         }
                     }) { Text("Sign out") }
                 }
@@ -291,6 +316,29 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
                                 } else launcher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                             }
                         ) { Text("◎ Check in now") }
+                        Spacer(Modifier.height(12.dp))
+                        Text("Optional foreground tracking", fontWeight = FontWeight.Bold)
+                        Text("Only after you start it, location may be sent while you use other apps. A persistent notification offers Stop. No automatic restarts or offline queue; network failures may lose fixes.", style = MaterialTheme.typography.bodySmall)
+                        if (ForegroundTracking.running) {
+                            Text("● Foreground tracking active", color = MaterialTheme.colorScheme.primary)
+                            Button(onClick = {
+                                activity.stopService(Intent(activity, ForegroundTrackingService::class.java))
+                                ForegroundTracking.session = null
+                                message = "Tracking stopped."
+                            }) { Text("Stop foreground tracking") }
+                        } else {
+                            OutlinedButton(enabled = !busy && account.bool("recording_enabled"), onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                    trackerNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    trackerPermissions.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                                }
+                            }) { Text("Start foreground tracking") }
+                        }
+                        if (ForegroundTracking.lastProblem.isNotBlank()) {
+                            Text(ForegroundTracking.lastProblem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
                         if (!account.bool("recording_enabled")) Text("Enable recording in Privacy first.", style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(16.dp))
@@ -350,6 +398,10 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
                             }
                             Switch(checked = account.bool("recording_enabled"), enabled = !busy, onCheckedChange = { enabled ->
                                 runAction {
+                                    if (!enabled) {
+                                        activity.stopService(Intent(activity, ForegroundTrackingService::class.java))
+                                        ForegroundTracking.session = null
+                                    }
                                     withContext(Dispatchers.IO) {
                                         request(session.origin, session.token, "/privacy", "PATCH", JSONObject().put("recordingEnabled", enabled))
                                     }
@@ -395,7 +447,7 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
                 }
             }
             Spacer(Modifier.height(26.dp))
-            Text("GoreeCloud Locations · Alpha preview · No background tracking", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("GoreeCloud Locations · Alpha preview · Foreground tracking only after your explicit start", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
