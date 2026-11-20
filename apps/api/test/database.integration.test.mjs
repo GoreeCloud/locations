@@ -133,6 +133,18 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     assert.equal(ownTrips.methodology,'heuristic-offline-v1');
     assert.equal((await call('GET','/v1/trips',charlieToken,null,200)).payload.trips.length,0);
     await call('GET','/v1/trips?userId='+bobId,charlieToken,null,400);
+    // Retries are atomic and idempotent per account, without leaking client keys into stored rows.
+    const keyed = { ...point, clientKey: 'integration_replay_cross_account_2026' };
+    assert.deepEqual((await call('POST','/v1/locations',bobToken,keyed,201)).payload, {accepted:1,duplicates:0});
+    assert.deepEqual((await call('POST','/v1/locations',bobToken,keyed,201)).payload, {accepted:0,duplicates:1});
+    assert.deepEqual((await call('POST','/v1/locations/batch',bobToken,{positions:[keyed,keyed]},201)).payload, {accepted:0,duplicates:2});
+    const hashed = await db.query('SELECT client_key_hash FROM positions WHERE account_id=$1 AND source=$2 AND client_key_hash IS NOT NULL',[bobId,'synthetic']);
+    assert.equal(hashed.rows.length,1);
+    assert.match(hashed.rows[0].client_key_hash, /^[0-9a-f]{64}$/);
+    assert.notEqual(hashed.rows[0].client_key_hash, keyed.clientKey);
+    await call('PATCH','/v1/privacy',aliceToken,{recordingEnabled:true},200);
+    assert.deepEqual((await call('POST','/v1/locations',aliceToken,keyed,201)).payload, {accepted:1,duplicates:0});
+    await call('PATCH','/v1/privacy',aliceToken,{recordingEnabled:false},200);
     // A logged-out bearer token is unusable, including for history.
     await call('POST','/v1/auth/logout',aliceToken,null,200);
     await call('GET','/v1/me',aliceToken,null,401);

@@ -39,6 +39,14 @@ test('coordinates and measurement boundaries', () => {
     { latitude: 0, longitude: 0, capturedAt: '3000-01-01' }
   ]) assert.throws(() => pointInput(v), HttpError);
 });
+test('client idempotency key validation', () => {
+  const valid = pointInput({ latitude: 0, longitude: 0, clientKey: 'traccar_abc-123:device.0' });
+  assert.equal(valid.clientKey, 'traccar_abc-123:device.0');
+  for (const value of ['', 'hello world', 'x'.repeat(161), 'secret?foo=bar', 22, [], {}]) {
+    assert.throws(() => pointInput({ latitude: 0, longitude: 0, clientKey: value }), HttpError);
+  }
+  assert.equal(pointInput({ latitude: 0, longitude: 0 }).clientKey, null);
+});
 test('pagination is bounded and numeric', () => {
   assert.equal(positiveLimit(null), 500);
   assert.equal(positiveLimit('20'), 20);

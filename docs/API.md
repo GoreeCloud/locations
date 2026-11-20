@@ -12,7 +12,7 @@ Base path via the web proxy: `/api/v1`. Direct API server local development uses
 | GET | `/v1/me` | Current account privacy preferences |
 | PATCH | `/v1/privacy` | `recordingEnabled: boolean`, `retentionDays: integer 1..365` |
 | POST | `/v1/locations` | Single `latitude`, `longitude`, optional `accuracyM`, `capturedAt`, `source` |
-| POST | `/v1/locations/batch` | `{positions: [...]}` up to 500 points, accepted only when recording enabled |
+| POST | `/v1/locations/batch` | `{positions: [...]}` up to 500 points, accepted only when recording enabled; optional `clientKey` per point provides account-scoped idempotency. Response returns `accepted` inserted and `duplicates` skipped |
 | GET | `/v1/locations?userId=&from=&until=&limit=` | Up to 1000, default 500 recent points from past 30 days, owner or presently consented circle member only |
 | GET | `/v1/locations/latest` | Most recent personal and consenting shared member positions |
 | GET | `/v1/trips?from=&until=&points=` | Heuristic trip summaries from **current account only**, default prior 30 days/3,000 points, max 10,000. Returns estimated distance/duration, lines and truncation flag |

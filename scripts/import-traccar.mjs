@@ -2,6 +2,7 @@
 // Pull YOUR authorized Traccar history via upstream REST reports and import under your account.
 // Traccar server credentials are never sent to GoreeCloud Locations.
 import { pointInput } from '../apps/api/src/security.mjs';
+import { createHash } from 'node:crypto';
 
 const base = (process.env.TRACCAR_URL || '').replace(/\/$/, '');
 const user = process.env.TRACCAR_USERNAME;
@@ -34,8 +35,10 @@ const positions = [];
 let skipped = 0;
 for (const row of rows) {
   try {
-    positions.push(pointInput({ latitude: row.latitude, longitude: row.longitude, accuracyM: row.accuracy ?? null,
-      capturedAt: row.fixTime || row.deviceTime || row.serverTime, source: 'traccar' }));
+    const point = pointInput({ latitude: row.latitude, longitude: row.longitude, accuracyM: row.accuracy ?? null,
+      capturedAt: row.fixTime || row.deviceTime || row.serverTime, source: 'traccar' });
+    const key = createHash('sha256').update(JSON.stringify([deviceId,point.capturedAt,point.latitude,point.longitude,point.accuracyM])).digest('hex');
+    positions.push({ ...point, clientKey: 'traccar_' + key });
   } catch { skipped++; }
 }
 let imported = 0;

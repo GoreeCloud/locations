@@ -167,18 +167,21 @@ export function makeHandler(db, options) {
       const points = path.endsWith('/batch') ? input.positions : [input];
       if (!Array.isArray(points) || points.length < 1 || points.length > 500) throw new HttpError(400, 'Invalid positions batch');
       const values = points.map(pointInput);
-      await db.transaction(async q => {
+      const inserted = await db.transaction(async q => {
         // Lock consent against a concurrent user revocation; stale session snapshots are never sufficient.
         const consent = await q('SELECT recording_enabled FROM accounts WHERE id=$1 FOR UPDATE', [me.id]);
         if (!consent.rowCount || consent.rows[0].recording_enabled !== true) {
           throw new HttpError(403, 'Enable recording first');
         }
+        let inserted = 0;
         for (const p of values) {
-          await q('INSERT INTO positions(account_id,latitude,longitude,accuracy_m,captured_at,source) VALUES ($1,$2,$3,$4,$5,$6)',
-            [me.id,p.latitude,p.longitude,p.accuracyM,p.capturedAt,p.source]);
+          const result = await q('INSERT INTO positions(account_id,latitude,longitude,accuracy_m,captured_at,source,client_key_hash) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (account_id,client_key_hash) WHERE client_key_hash IS NOT NULL DO NOTHING',
+            [me.id,p.latitude,p.longitude,p.accuracyM,p.capturedAt,p.source,p.clientKey === null ? null : digest(p.clientKey)]);
+          inserted += result.rowCount;
         }
+        return inserted;
       });
-      return json(res, 201, { accepted: values.length });
+      return json(res, 201, { accepted: inserted, duplicates: values.length - inserted });
     }
     if (req.method === 'GET' && path === '/v1/locations') {
       const owner = url.searchParams.has('userId') ? uuid(url.searchParams.get('userId')) : me.id;

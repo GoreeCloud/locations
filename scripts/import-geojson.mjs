@@ -2,6 +2,7 @@
 // Import a GeoJSON FeatureCollection exported by Dawarich or another GPX/GeoJSON converter.
 // No database bypass: the signed-in owner must enable recording explicitly first.
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { pointInput } from '../apps/api/src/security.mjs';
 
 const [filename] = process.argv.slice(2);
@@ -28,8 +29,11 @@ for (const feature of contents.features) {
   const capture = typeof capturedAt === 'number' ? new Date(capturedAt).toISOString() : capturedAt;
   if (!capture) { skipped++; continue; }
   const accuracyM = props.accuracyM ?? props.accuracy ?? null;
-  try { points.push(pointInput({ latitude, longitude, accuracyM, capturedAt: capture, source: 'geojson' })); }
-  catch { skipped++; }
+  try {
+    const point = pointInput({ latitude, longitude, accuracyM, capturedAt: capture, source: 'geojson' });
+    const key = createHash('sha256').update(JSON.stringify([point.capturedAt,point.latitude,point.longitude,point.accuracyM])).digest('hex');
+    points.push({ ...point, clientKey: 'geojson_' + key });
+  } catch { skipped++; }
 }
 if (!points.length) throw new Error('No valid, timestamped positions found.');
 let saved = 0;
