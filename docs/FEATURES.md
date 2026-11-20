@@ -10,7 +10,7 @@ This registry distinguishes implemented **source-level functionality** from plan
 | Map | MapLibre latest-position markers; optional public OpenStreetMap raster tiles | External tile requests require an affirmative browser toggle; no offline maps |
 | Web location | User-initiated one-time browser geolocation check-in | Requires explicit server recording consent and secure browser context |
 | Android | Native Kotlin + Jetpack Compose client, login, recent-position lists, circles, per-circle sharing, privacy controls | Debug APK builds; no verified physical-device usability/permission acceptance |
-| Android location | Foreground-only, user-initiated one-time Android location check-in | No background location permission, service, polling, or passive transmission |
+| Android location | User-initiated one-time check-in and opt-in Android foreground location service with persistent Stop notification | Foreground service samples while active; not verified on physical hardware, no boot restart or background-location permission, and no durable offline queue |
 | Server identity | Owner bootstrap with server secret, invitation-only account registration, scrypt passwords, opaque bearer sessions | Local implementation only; not integrated with GoreeCloud Identity / OIDC / MFA |
 | Consent | Recording disabled by default; per-circle sharing disabled by default and controlled by each member | Server enforces individual consent and member scoping; full adversarial review remains |
 | History | PostgreSQL/PostGIS position records with ISO capture time, accuracy, source, bounded list queries and last-known positions | Isolated real-database tests and production restore are separate acceptance gates |
@@ -22,7 +22,7 @@ This registry distinguishes implemented **source-level functionality** from plan
 
 ## Planned or incomplete capabilities
 
-- Consent-first Android continuous tracking, persistent opt-in foreground-service notification, prominent pause/stop, safe offline queue and idempotent replay.
+- Complete Android foreground-tracking real-device battery, permission revocation, standby, notification controls, and safe encrypted offline queue with idempotent replay; the initial opt-in foreground-service implementation is still an alpha preview.
 - Accurate native map, improved trip visualization, history filters and durable, paginated export.
 - Dawarich-style stays, routes, trip segmentation, history analysis and local-first spatial insights.
 - Traccar device-protocol ingestion, device identity and token isolation, validated provenance and separate upstream licensing obligations.

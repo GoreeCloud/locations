@@ -9,7 +9,7 @@ Status as of initial development source, not promised delivery dates.
 | P0 | Web map and native Android check-in | Android assembleDebug plus physical foreground permission tests; browser map and keyboard/a11y review |
 | P0 | Reproducible CI & source code licensing | Valid clean builds, wrapper verification, license and upstream attribution readback |
 | P1 | Stable secure remote hosting | Validated HTTPS, reverse-proxy hardening, backup/restore rehearsal, risk assessment |
-| P1 | Continuous tracking (opt-in) | Persistent notification, Android foreground service permission, battery tests, prominent pause/kill switch, abuse review |
+| P1 | Continuous tracking (opt-in) | Native foreground service with persistent Stop notification has an initial development implementation; still required: physical-device battery/permission review, robust offline queue, kill-switch/abuse acceptance |
 | P1 | Visits and trips (Dawarich-style) | Initial personal read-only heuristic trip summaries exist; remaining acceptance: privacy-preserving visit/stay grouping, map matching, PostGIS trip analysis and real-world validation |
 | P1 | Geofences and arrival/departure | Explicit per-person consent, per-circle granular controls, no covert notifications |
 | P1 | Vehicle and GPS-device tracking (Traccar-style) | Audited Traccar device-protocol bridge with scoped auth, licensing compatibility and abuse controls |
