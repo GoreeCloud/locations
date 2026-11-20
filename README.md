@@ -2,12 +2,12 @@
 
 **Self-hosted location history, trusted circles and on-demand device check-ins.** A native-first, privacy-led alternative inspired by the useful workflows of Dawarich, Traccar and Life360, built with original GoreeCloud code and open-source components.
 
-> **Status: 0.1.0-alpha.0 development source. Not a Life360-equivalent emergency or production service.** No continuously running tracking, geofencing or family safety notifications are implemented yet. No production deployment or signed Android APK is claimed.
+> **Status: 0.1.0-alpha.0 development source. Not a Life360-equivalent emergency or production service.** A user-started Android foreground tracking preview exists, but device acceptance, durable offline tracking, geofences, and family safety notifications are not established. No production deployment or signed release APK is claimed.
 
 ## Included now
 
 - **Web** — React/Vite dashboard, MapLibre map, opted-in OpenStreetMap map tiles, personal history, check-in, GeoJSON export, history erase, circles and invites, privacy controls.
-- **Android** — Kotlin + Jetpack Compose native client, current positions and history list, explicit foreground check-in, per-circle sharing and account recording/retention controls.
+- **Android** — Kotlin + Jetpack Compose native client, current positions and history list, on-demand check-in and an individually started foreground tracking service with persistent Stop notification; no boot auto-start, no background-location permission, no offline queue. Real-device behavior is not yet accepted.
 - **API** — Node 22 HTTP REST, locally authenticated owner + invitation-only accounts, scrypt password storage, short-lived invitation tokens and 30-day opaque sessions.
 - **Database** — PostgreSQL 17/PostGIS, private account tracks, circle membership, explicit opt-in sharing, bounded retention and spatial index.
 - **Trips** — offline deterministic estimates of journeys from your stored position samples, visible in the web History tab; no map matching, geocoding, arrival inference, or automatic tracking.
@@ -40,7 +40,7 @@ npm run build
 cd apps/android && ./gradlew :app:assembleDebug
 ```
 
-The Android app uses a user-provided HTTPS server address and does not request background access. Debug builds can target a local HTTP emulator host. The web client holds session tokens in RAM (reload signs out), not localStorage.
+The Android app uses a user-provided HTTPS server address. Foreground tracking is *opt-in each app process*, requires recording consent plus foreground location and notification permission, sends a fix only when movement or the OS delivers an update, and offers a persistent Stop notification. Sign-out or disabling recording stops the service. It does **not** request background-location permission, restart on boot, or persist/retry offline fixes. Debug builds can target a local HTTP emulator host. The web client holds session tokens in RAM (reload signs out), not localStorage.
 
 ## Import an existing location history
 
@@ -66,7 +66,7 @@ Imports use deterministic per-point client keys, so resubmitting identical norma
 
 ## Privacy-first operation
 
-- Recording **off** at account creation. No background collection.
+- Recording **off** at account creation. No automatic background collection. Android foreground tracking starts only from a visible user action and shows a persistent Stop notification.
 - Sharing **off** when a circle is created or joined. Circle membership alone does not reveal tracks; sharing is set by the individual.
 - No analytics SDK or cloud location tracking. Optional public map tiles are disabled until actively enabled in the browser.
 - Default retention **30 days**, configurable 1–365 days, hourly cleanup.

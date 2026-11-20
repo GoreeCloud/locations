@@ -5,7 +5,7 @@
 - `apps/web`: React 19, Vite, MapLibre GL JS map (no outside tiles by default), desktop/mobile responsive UI. Vendor-pinned GoreeCloud UI CSS token source.
 - `apps/api`: Node.js 22 HTTP REST service, scrypt account passwords, 256-bit random opaque bearer sessions, SHA-256-at-rest bearer and invitation tokens, bounded request bodies, constant-time bootstrap comparison and basic memory-bound sign-in throttling. Auth and privacy are enforced on the server, not in clients.
 - `migrations`: PostgreSQL 17 + PostGIS models for account-scoped tracks, circles, per-member opt-in sharing and expiring one-use invitations. Spatial GiST index is reserved for later geofences and proximity search.
-- `apps/android`: native Kotlin/Jetpack Compose, foreground user-initiated location fix and HTTPS API, RAM-only session.
+- `apps/android`: native Kotlin/Jetpack Compose, manual check-in and explicitly started notification-visible foreground location service, HTTPS API, RAM-only session. No background-location permission, boot restart or offline queue; the service checks server consent before attempting updates and is not device-qualified.
 - `scripts`: portable imported position adapters for GeoJSON/Dawarich exports and Traccar JSON reports; no proprietary Life360 source.
 
 All first-party source, vendored design tokens, builds, container definitions and workflow code are in the same repository.
@@ -23,7 +23,7 @@ All first-party source, vendored design tokens, builds, container definitions an
 
 ## Known limitations / acceptance gates
 
-- Not equivalent to Life360: continuous opt-in background tracking, geofences/arrival-departure, distress/SOS, safety escalation, notification delivery, fine-grained contact invitations and anti-abuse features are **not implemented**.
+- Not equivalent to Life360: an opt-in Android foreground tracking preview exists, but background-location permission, boot auto-start, durable offline sync, verified geofences/arrival-departure, distress/SOS, safety escalation, notification delivery, fine-grained contact invitations and abuse acceptance are **not implemented**.
 - Not a full Traccar protocol receiver: only Traccar REST route-import adapter; no GPS tracker TCP/UDP device-protocol service imported. Traccar itself is not embedded or running.
 - Not a Dawarich fork: GeoJSON interchange and initial deterministic, account-private trip estimates are supported; visit analytics, map matching, heatmaps, AI classification and full Dawarich analysis are not present.
 - The server uses a simple initial SQL schema migration; future changes need versioned, transactional migrations.
