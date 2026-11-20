@@ -39,7 +39,7 @@ webImage="${SMOKE_WEB_IMAGE:-localhost/gclocations-smoke-web:local}"
   -e "POSTGRES_PASSWORD=$password" docker.io/postgis/postgis:17-3.5 >/dev/null
 dbReady=0
 for _ in $(seq 1 45); do
-  if "$engine" exec "$db" pg_isready -U locations -d locations >/dev/null 2>&1; then dbReady=1; break; fi
+  if "$engine" exec "$db" pg_isready -h 127.0.0.1 -U locations -d locations >/dev/null 2>&1; then dbReady=1; break; fi
   sleep 1
 done
 [[ "$dbReady" -eq 1 ]] || { echo 'Disposable PostGIS was not healthy' >&2; exit 1; }
