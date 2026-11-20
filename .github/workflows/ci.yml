@@ -45,6 +45,15 @@ jobs:
           path: apps/web/dist/
           if-no-files-found: error
           retention-days: 7
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run disposable web, API and PostGIS with Docker
+        env:
+          CONTAINER_ENGINE: docker
+        run: bash scripts/smoke-containers.sh
   android:
     runs-on: ubuntu-latest
     steps:

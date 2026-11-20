@@ -25,6 +25,8 @@ Prerequisites: Git, Compose-compatible container engine, Node.js >=22 (for local
 5. Go to **Privacy**, explicitly enable recording, and click **Check in now** to request browser foreground location.
 6. Create a circle and generate a 24-hour, single-use invitation. New members still have recording and circle sharing disabled. They enable these independently.
 
+The disposable container smoke is available via `CONTAINER_ENGINE=docker bash scripts/smoke-containers.sh` (or `podman` on a properly configured bridge). It builds the web and API images, starts a temporary PostGIS database on a private container network with no host volume, then checks web HTTP 200, API health HTTP 200 and unauthenticated privacy HTTP 401 before removing all test containers and network. Older rootless Podman CNI setups may lack inter-container DNS or bridge routing and fail independently of Docker; install a supported networking backend before using Compose there.
+
 Compose binds only loopback (`127.0.0.1:8080`); the API and database aren't exposed on host networking. Use a reverse proxy with verified TLS and access control before any network access, and never expose a production setup token. Browser geolocation generally requires a secure origin (localhost is a special local context). For Android device testing, use a real HTTPS hostname that routes `/api` to the service.
 
 ## Develop locally
