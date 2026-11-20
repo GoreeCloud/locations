@@ -145,6 +145,35 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     await call('PATCH','/v1/privacy',aliceToken,{recordingEnabled:true},200);
     assert.deepEqual((await call('POST','/v1/locations',aliceToken,keyed,201)).payload, {accepted:1,duplicates:0});
     await call('PATCH','/v1/privacy',aliceToken,{recordingEnabled:false},200);
+    // Account-only cursor pagination yields every saved point exactly once.
+    const expected = (await db.query('SELECT COUNT(*)::int AS n FROM positions WHERE account_id=$1',[bobId])).rows[0].n;
+    let beforeId = null;
+    const ids = [];
+    let finished = false;
+    for (let page = 0; page < 30; page++) {
+      const suffix = beforeId ? '&beforeId=' + encodeURIComponent(beforeId) : '';
+      const data = (await call('GET','/v1/export/geojson/page?limit=2' + suffix,bobToken,null,200)).payload;
+      assert.equal(data.type, 'FeatureCollection');
+      assert.ok(data.features.length <= 2);
+      for (const feature of data.features) {
+        assert.equal(feature.geometry.type,'Point');
+        ids.push(feature.id);
+      }
+      if (!data.hasMore) {
+        assert.equal(data.nextBeforeId, null);
+        finished = true;
+        break;
+      }
+      assert.match(data.nextBeforeId, /^[1-9][0-9]*$/);
+      beforeId = data.nextBeforeId;
+    }
+    assert.equal(finished, true);
+    assert.equal(ids.length, expected);
+    assert.equal(new Set(ids).size, expected);
+    assert.equal((await call('GET','/v1/export/geojson/page',charlieToken,null,200)).payload.features.length,0);
+    await call('GET','/v1/export/geojson/page?limit=0',bobToken,null,400);
+    await call('GET','/v1/export/geojson/page?beforeId=-1',bobToken,null,400);
+    await call('GET','/v1/export/geojson/page?beforeId=9223372036854775808',bobToken,null,400);
     // A logged-out bearer token is unusable, including for history.
     await call('POST','/v1/auth/logout',aliceToken,null,200);
     await call('GET','/v1/me',aliceToken,null,401);

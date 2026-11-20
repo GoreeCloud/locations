@@ -16,7 +16,8 @@ Base path via the web proxy: `/api/v1`. Direct API server local development uses
 | GET | `/v1/locations?userId=&from=&until=&limit=` | Up to 1000, default 500 recent points from past 30 days, owner or presently consented circle member only |
 | GET | `/v1/locations/latest` | Most recent personal and consenting shared member positions |
 | GET | `/v1/trips?from=&until=&points=` | Heuristic trip summaries from **current account only**, default prior 30 days/3,000 points, max 10,000. Returns estimated distance/duration, lines and truncation flag |
-| GET | `/v1/export/geojson` | Account's personal GeoJSON, limit 50k points, returns 413 if exceeded |
+| GET | `/v1/export/geojson` | Backward-compatible personal GeoJSON, limit 50k points; returns 413 and points to paged export for larger histories |
+| GET | `/v1/export/geojson/page?limit=&beforeId=` | Account-only stable descending-ID GeoJSON pages (default 1,000, max 5,000); returns FeatureCollection, `hasMore`, and nullable `nextBeforeId`. Follow cursor until null; no third-party routing |
 | DELETE | `/v1/me/locations` | Permanently erase all stored points for account |
 | DELETE | `/v1/me` | Permanently delete authenticated account, own positions and sessions; requires `password` and `confirmation: "DELETE ACCOUNT"`; refuses while owned circles have other members |
 | GET | `/v1/circles` | Circle membership and own sharing state |
