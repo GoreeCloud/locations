@@ -60,7 +60,7 @@ IMPORT_API_TOKEN='...' API_URL=http://localhost:8080/api \
   node scripts/import-traccar.mjs
 ```
 
-Imports are append-only and not yet deduplicated. Review files before upload. Limit and format constraints are documented in [API](docs/API.md).
+Imports use deterministic per-point client keys, so resubmitting identical normalized points from the same importer is idempotent for an account. Other location writes without client keys remain append-only. Review files before upload; imported timestamps and source coordinates remain sensitive. Limit and format constraints are documented in [API](docs/API.md).
 
 ## Privacy-first operation
 

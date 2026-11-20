@@ -47,7 +47,7 @@ export function uuid(value) {
 }
 export function pointInput(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new HttpError(400, 'Invalid location');
-  const { latitude, longitude, accuracyM = null, capturedAt, source = 'manual' } = value;
+  const { latitude, longitude, accuracyM = null, capturedAt, source = 'manual', clientKey = null } = value;
   if (typeof latitude !== 'number' || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
       typeof longitude !== 'number' || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
     throw new HttpError(400, 'Coordinates out of range');
@@ -56,11 +56,12 @@ export function pointInput(value) {
     throw new HttpError(400, 'Invalid accuracy');
   }
   if (typeof source !== 'string' || !/^[a-z0-9_-]{1,32}$/i.test(source)) throw new HttpError(400, 'Invalid source');
+  if (clientKey !== null && (typeof clientKey !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(clientKey))) throw new HttpError(400, 'Invalid client key');
   const date = capturedAt ? new Date(capturedAt) : new Date();
   if (!Number.isFinite(date.getTime()) || date.getTime() > Date.now() + 300000 || date.getTime() < Date.now() - 10 * 365 * 86400000) {
     throw new HttpError(400, 'Invalid capture time');
   }
-  return { latitude, longitude, accuracyM, capturedAt: date.toISOString(), source };
+  return { latitude, longitude, accuracyM, capturedAt: date.toISOString(), source, clientKey };
 }
 export function positiveLimit(value, fallback = 500, maximum = 1000) {
   if (value === null || value === undefined || value === '') return fallback;

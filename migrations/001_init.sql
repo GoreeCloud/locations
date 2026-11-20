@@ -48,5 +48,7 @@ CREATE TABLE IF NOT EXISTS positions (
   source text NOT NULL DEFAULT 'manual' CHECK (char_length(source) BETWEEN 1 AND 32),
   received_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE positions ADD COLUMN IF NOT EXISTS client_key_hash text;
+CREATE UNIQUE INDEX IF NOT EXISTS positions_account_client_key_idx ON positions(account_id, client_key_hash) WHERE client_key_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS positions_account_time_idx ON positions(account_id, captured_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS positions_geography_idx ON positions USING GIST ((ST_SetSRID(ST_MakePoint(longitude, latitude),4326)::geography));
