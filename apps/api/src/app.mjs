@@ -1,6 +1,7 @@
 import { HttpError, digest, newToken, secureEquals, emailAddress, passwordInput, hashPassword, verifyPassword, uuid, pointInput, positiveLimit, coordinateInput, radiusInput } from './security.mjs';
 import { inferTrips } from './trips.mjs';
 import { inferVisits } from './visits.mjs';
+import { privatePlaceInput } from './places.mjs';
 
 const isBool = v => typeof v === 'boolean';
 const ACCESS_MS = 30 * 86400000;
@@ -240,6 +241,45 @@ export function makeHandler(db, options) {
         [me.id,from,until,longitude,latitude,radiusMeters,limit]
       );
       return json(res, 200, { positions:r.rows, radiusMeters });
+    }
+    if (req.method === 'GET' && path === '/v1/me/places') {
+      // Labels are account-private. Circle consent never shares named places.
+      const places = await db.query(
+        'SELECT id,name,latitude,longitude,radius_m,created_at FROM saved_places WHERE account_id=$1 ORDER BY created_at DESC,id DESC LIMIT 25',
+        [me.id]
+      );
+      return json(res, 200, { places:places.rows });
+    }
+    if (req.method === 'POST' && path === '/v1/me/places') {
+      if (url.search) throw new HttpError(400, 'Place coordinates belong in the JSON body');
+      const place = privatePlaceInput(await body(req));
+      const created = await db.transaction(async q => {
+        // Serialize one account's creations, including parallel create requests.
+        const account = await q('SELECT id FROM accounts WHERE id=$1 FOR UPDATE', [me.id]);
+        if (!account.rowCount) throw new HttpError(401, 'Account not found');
+        const count = await q('SELECT count(*)::integer AS n FROM saved_places WHERE account_id=$1', [me.id]);
+        if (count.rows[0].n >= 25) throw new HttpError(409, 'Maximum 25 private saved places');
+        const r = await q(
+          'INSERT INTO saved_places(account_id,name,latitude,longitude,radius_m) VALUES ($1,$2,$3,$4,$5) RETURNING id,name,latitude,longitude,radius_m,created_at',
+          [me.id,place.name,place.latitude,place.longitude,place.radiusMeters]
+        );
+        return r.rows[0];
+      });
+      return json(res,201,{place:created});
+    }
+    const deletePlace = /^\/v1\/me\/places\/([^/]+)$/.exec(path);
+    if (deletePlace && req.method === 'DELETE') {
+      const id = uuid(deletePlace[1]);
+      const input = await body(req);
+      if (typeof input.confirmName !== 'string' || input.confirmName.length > 80) {
+        throw new HttpError(400, 'Type the exact place name to confirm deletion');
+      }
+      const deleted = await db.query(
+        'DELETE FROM saved_places WHERE id=$1 AND account_id=$2 AND name=$3 RETURNING id',
+        [id,me.id,input.confirmName]
+      );
+      if (!deleted.rowCount) throw new HttpError(404, 'Place not found or name does not match');
+      return json(res,200,{deleted:true});
     }
     if (req.method === 'GET' && path === '/v1/trips') {
       if (url.searchParams.has('userId')) throw new HttpError(400, 'Trip summaries are personal only');

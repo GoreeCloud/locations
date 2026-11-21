@@ -105,6 +105,30 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     const joinedBob = attempts.find(x=>x.status===201);
     const bobToken = joinedBob.payload.token;
     const bobId = joinedBob.payload.account.id;
+    // Places are account-owned labels, never visible to a sharing circle.
+    const privateHome = {
+      name:'Synthetic private home', latitude:32.7, longitude:-86.7, radiusMeters:125
+    };
+    const alicePlace = (await call('POST','/v1/me/places',aliceToken,privateHome,201)).payload.place;
+    assert.equal(alicePlace.name,privateHome.name);
+    assert.equal(alicePlace.radius_m,125);
+    assert.equal((await call('GET','/v1/me/places',aliceToken,null,200)).payload.places.length,1);
+    assert.equal((await call('GET','/v1/me/places',bobToken,null,200)).payload.places.length,0);
+    await call('DELETE','/v1/me/places/'+alicePlace.id,bobToken,{confirmName:privateHome.name},404);
+    await call('DELETE','/v1/me/places/'+alicePlace.id,aliceToken,{confirmName:'wrong name'},404);
+    await call('POST','/v1/me/places?latitude=33',aliceToken,privateHome,400);
+    await call('POST','/v1/me/places',aliceToken,{...privateHome,accountId:bobId},400);
+    await call('POST','/v1/me/places',aliceToken,{...privateHome,latitude:99},400);
+    await call('DELETE','/v1/me/places/'+alicePlace.id,aliceToken,{confirmName:privateHome.name},200);
+    assert.equal((await call('GET','/v1/me/places',aliceToken,null,200)).payload.places.length,0);
+    // One place remains to verify cascade, and parallel requests respect the 25-place cap.
+    await call('POST','/v1/me/places',aliceToken,{...privateHome,name:'Private place deleted with account'},201);
+    const crowded = await Promise.all(Array.from({length:25},(_,i) =>
+      call('POST','/v1/me/places',aliceToken,{...privateHome,name:'Synthetic place '+i})
+    ));
+    assert.equal(crowded.filter(x=>x.status===201).length,24);
+    assert.equal(crowded.filter(x=>x.status===409).length,1);
+    assert.equal((await call('GET','/v1/me/places',aliceToken,null,200)).payload.places.length,25);
     assert.equal((await call('GET','/v1/circles',bobToken,null,200)).payload.circles[0].sharing_enabled,false);
     // Token is one-use and cannot register or invite a different person.
     await call('POST','/v1/auth/join',null,{email:'duplicate-'+suffix+'@example.invalid',password,inviteToken:inviteBob},404);
@@ -271,6 +295,7 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     await call('DELETE','/v1/circles/'+separateCircle,currentAliceToken,{confirmName:'Separate circle'},200);
     assert.equal((await call('GET','/v1/circles',charlieToken,null,200)).payload.circles.length,0);
     await call('DELETE','/v1/me',currentAliceToken,{password,confirmation:'DELETE ACCOUNT'},200);
+    assert.equal((await db.query('SELECT count(*)::integer AS n FROM saved_places WHERE account_id=$1',[alice.id])).rows[0].n,0);
     await call('GET','/v1/me',currentAliceToken,null,401);
     await call('POST','/v1/auth/login',null,{email:aliceEmail,password},401);
     assert.ok((await call('GET','/v1/locations',bobToken,null,200)).payload.positions.length>=1);

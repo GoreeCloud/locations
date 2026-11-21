@@ -11,7 +11,7 @@ Status as of initial development source, not promised delivery dates.
 | P1 | Stable secure remote hosting | Synthetic Docker HTTP smoke and database backup/restore rehearsal are development CI gates; still requires verified HTTPS, encrypted independent backup with restore, host-network acceptance and deployment hardening |
 | P1 | Continuous tracking (opt-in) | Native foreground service with persistent Stop notification and bounded RAM retries exists; still requires physical-device battery/permission validation, an encrypted account-bound durable offline queue, safe replay and backend in-flight stop acceptance |
 | P1 | Visits and trips (Dawarich-style) | Initial personal read-only heuristic trip/stay summaries and account-only PostGIS radius search exist; remaining acceptance: verified stay grouping, labels, map matching, advanced trip analytics and real-world validation |
-| P1 | Geofences and arrival/departure | Explicit per-person consent, per-circle granular controls, no covert notifications |
+| P1 | Private named places and geofences | Private named-place storage and owner-only CRUD API implemented; user-facing place UI, accuracy-aware geofence evaluation, event notifications and explicit per-person consent/recipient controls remain unimplemented. No covert notifications |
 | P1 | Vehicle and GPS-device tracking (Traccar-style) | Audited Traccar device-protocol bridge with scoped auth, licensing compatibility and abuse controls |
 | P2 | Family safety features | Distress opt-in, fake location/stale-state clarity, anti-stalking UX and harm minimization |
 | P2 | Offline Android queue | Local encrypted storage, bounded retry, deletion semantics and key lifecycle tests |
