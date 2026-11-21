@@ -9,6 +9,8 @@ Base path via the web proxy: `/api/v1`. Direct API server local development uses
 | POST | `/v1/auth/login` | Authenticate email/password, return `token`, `expiresAt` |
 | POST | `/v1/auth/join` | Register a new account using an invite token |
 | POST | `/v1/auth/logout` | Revoke present session |
+| GET | `/v1/me/sessions` | List up to 100 own active session IDs, created/expiry timestamps and current flag; no bearer tokens returned |
+| POST | `/v1/me/sessions/revoke-others` | Password-confirmed revocation of other sessions for the account; current session remains; returns revoked count |
 | GET | `/v1/me` | Current account privacy preferences |
 | PATCH | `/v1/privacy` | `recordingEnabled: boolean`, `retentionDays: integer 1..365` |
 | POST | `/v1/locations` | Single `latitude`, `longitude`, optional `accuracyM`, `capturedAt`, `source` |

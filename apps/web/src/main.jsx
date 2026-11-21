@@ -113,17 +113,19 @@ function Dashboard({ token, onLogout }) {
   const [generatedInvite,setGeneratedInvite] = useState('');
   const [deletePassword,setDeletePassword] = useState('');
   const [deleteConfirmation,setDeleteConfirmation] = useState('');
+  const [sessions,setSessions] = useState([]);
+  const [sessionPassword,setSessionPassword] = useState('');
   const [busy,setBusy] = useState(false);
   const execute = async (operation) => {
     setError(''); setNotice(''); setBusy(true);
     try { await operation(); } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
   async function refresh() {
-    const [account, group, current, old, journeys] = await Promise.all([
-      api('/v1/me',token),api('/v1/circles',token),api('/v1/locations/latest',token),api('/v1/locations?limit=500',token),api('/v1/trips',token)
+    const [account, group, current, old, journeys, activeSessions] = await Promise.all([
+      api('/v1/me',token),api('/v1/circles',token),api('/v1/locations/latest',token),api('/v1/locations?limit=500',token),api('/v1/trips',token),api('/v1/me/sessions',token)
     ]);
     setMe(account.account); setCircles(group.circles); setLatest(current.positions); setHistory(old.positions);
-    setTrips(journeys.trips); setTripsTruncated(journeys.truncated);
+    setTrips(journeys.trips); setTripsTruncated(journeys.truncated); setSessions(activeSessions.sessions);
   }
   useEffect(() => { refresh().catch(err => setError(err.message)); }, [token]);
   async function checkIn() {
@@ -206,6 +208,27 @@ function Dashboard({ token, onLogout }) {
         <div className="two-col"><div className="panel"><h2>Recording</h2><p className="muted">Your browser and Android device only send positions after explicit actions in this preview. This server setting must be enabled before any position is accepted.</p><div className="setting"><div><strong>Allow location history</strong><small>Default: off</small></div><button className={me.recording_enabled?'button primary':'button secondary'} disabled={busy} onClick={()=>execute(()=>changePrivacy({recordingEnabled:!me.recording_enabled}))}>{me.recording_enabled?'Disable recording':'Enable recording'}</button></div><div className="setting"><div><strong>Retention period</strong><small>Stored positions older than this are automatically removed.</small></div><select value={me.retention_days} disabled={busy} onChange={e=>execute(()=>changePrivacy({retentionDays:Number(e.target.value)}))}>{[1,7,14,30,90,180,365].map(v=><option key={v} value={v}>{v} days</option>)}</select></div></div>
         <div className="panel"><h2>Your data</h2><p className="muted">Export positions in GeoJSON or permanently erase saved location points. These controls do not delete account or circle membership.</p><div className="action-line"><button className="button secondary" disabled={busy} onClick={()=>execute(downloadExport)}>Export positions</button><button className="button danger" disabled={busy} onClick={()=>{if(window.confirm('Permanently delete ALL saved positions for this account?'))execute(async()=>{const r=await api('/v1/me/locations',token,'DELETE');await refresh();setNotice('Deleted '+r.deleted+' positions.');});}}>Delete all locations</button></div><p className="footnote">No third-party maps load without opt-in. Sharing toggles are managed per circle and can be withdrawn at any time.</p></div></div>
       </>}
+      {tab==='privacy' && <section className="panel" aria-label="Active sessions">
+        <h2>Active sign-ins</h2>
+        <p className="muted">Review your active server sessions and sign out other browsers or devices. Session details are limited to timestamps; no device identifiers or IP history are collected.</p>
+        {sessions.length ? <div className="entry-list">{sessions.map(s =>
+          <div className="entry" key={s.id}>
+            <span className="person" aria-hidden="true">◇</span>
+            <div><strong>{s.current ? 'This session' : 'Another session'}</strong>
+              <small>Created {fmt(s.created_at)} · Expires {fmt(s.expires_at)}</small></div>
+          </div>
+        )}</div> : <p className="empty">No active sessions listed.</p>}
+        <form onSubmit={e=>{e.preventDefault();execute(async()=>{
+          const response = await api('/v1/me/sessions/revoke-others',token,'POST',{password:sessionPassword});
+          setSessionPassword(''); await refresh();
+          setNotice('Signed out ' + response.revoked + ' other active session(s).');
+        });}}>
+          <label>Confirm current password to sign out other devices
+            <input type="password" autoComplete="current-password" value={sessionPassword} onChange={e=>setSessionPassword(e.target.value)} required />
+          </label>
+          <button className="button secondary" disabled={busy || !sessionPassword}>Sign out all other sessions</button>
+        </form>
+      </section>}
       {tab==='privacy' && <section className="panel" aria-label="Delete account">
         <h2>Delete account permanently</h2>
         <p className="muted">This erases your account, sessions, positions and memberships. Backup copies have their own retention period. If you own a circle with other members, delete that circle first; their personal histories are never erased by deleting your circle.</p>

@@ -15,6 +15,6 @@ Status as of initial development source, not promised delivery dates.
 | P1 | Vehicle and GPS-device tracking (Traccar-style) | Audited Traccar device-protocol bridge with scoped auth, licensing compatibility and abuse controls |
 | P2 | Family safety features | Distress opt-in, fake location/stale-state clarity, anti-stalking UX and harm minimization |
 | P2 | Offline Android queue | Local encrypted storage, bounded retry, deletion semantics and key lifecycle tests |
-| P2 | GoreeCloud MIPS | Verified API contracts and scoped identity, privacy, Wardveil, Mesh and UI acceptance |
+| P2 | GoreeCloud MIPS | Verified API contracts and scoped identity, privacy, Wardveil, Mesh and UI acceptance; standalone token session listing/revoke-others is not a replacement for MIPS Identity/OIDC/MFA |
 
 A screenshot, passing compile or development container is not a production deployment. This project has no production credentials, hosts, or data.

@@ -54,6 +54,17 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     const alice = initialized.payload.account;
     const aliceToken = initialized.payload.token;
     assert.equal((await call('GET','/v1/me',aliceToken,null,200)).payload.account.recording_enabled,false);
+    // Each account can list only its own active sessions and revoke others with a password.
+    const aliceOtherToken = (await call('POST','/v1/auth/login',null,{email:aliceEmail,password},200)).payload.token;
+    const sessionsBefore = (await call('GET','/v1/me/sessions',aliceToken,null,200)).payload.sessions;
+    assert.equal(sessionsBefore.length,2);
+    assert.equal(sessionsBefore.filter(s => s.current).length,1);
+    assert.equal(sessionsBefore.some(s => 'token_hash' in s || 'token' in s),false);
+    assert.equal((await call('GET','/v1/me/sessions',aliceOtherToken,null,200)).payload.sessions.length,2);
+    await call('POST','/v1/me/sessions/revoke-others',aliceToken,{password:'invalid'},401);
+    assert.equal((await call('POST','/v1/me/sessions/revoke-others',aliceToken,{password},200)).payload.revoked,1);
+    await call('GET','/v1/me',aliceOtherToken,null,401);
+    assert.equal((await call('GET','/v1/me/sessions',aliceToken,null,200)).payload.sessions.length,1);
     await call('POST','/v1/auth/bootstrap',null,{
       bootstrapToken:'synthetic-bootstrap-token-for-integration-testing-only',
       email:'second-' + suffix + '@example.invalid', password
