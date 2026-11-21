@@ -128,6 +128,19 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
       email:charlieEmail,password,inviteToken:inviteCharlie
     },201)).payload.token;
     await call('GET','/v1/locations?userId='+bobId,charlieToken,null,404);
+    // A shared circle never grants the personal PostGIS vicinity endpoint.
+    const nearbyBob = (await call('GET','/v1/locations/nearby?latitude=32.8&longitude=-86.7&radiusMeters=200',bobToken,null,200)).payload;
+    assert.ok(nearbyBob.positions.some(p=>Math.abs(p.latitude-32.8)<0.000001));
+    assert.ok(nearbyBob.positions.every(p=>Number(p.distance_m)<=200));
+    assert.equal(nearbyBob.radiusMeters,200);
+    assert.equal((await call('GET','/v1/locations/nearby?latitude=32.8&longitude=-86.7&radiusMeters=200',aliceToken,null,200)).payload.positions.length,0);
+    assert.equal((await call('GET','/v1/locations/nearby?latitude=32.8&longitude=-86.7&radiusMeters=200',charlieToken,null,200)).payload.positions.length,0);
+    assert.equal((await call('GET','/v1/locations/nearby?latitude=32.7&longitude=-86.7&radiusMeters=200',aliceToken,null,200)).payload.positions.length,1);
+    await call('GET','/v1/locations/nearby?latitude=32.8&longitude=-86.7&userId='+bobId,aliceToken,null,400);
+    await call('GET','/v1/locations/nearby?latitude=91&longitude=-86.7',bobToken,null,400);
+    await call('GET','/v1/locations/nearby?latitude=32.8&longitude=-181',bobToken,null,400);
+    await call('GET','/v1/locations/nearby?latitude=32.8&longitude=-86.7&radiusMeters=0',bobToken,null,400);
+    await call('GET','/v1/locations/nearby?latitude=32.8&longitude=-86.7&limit=1001',bobToken,null,400);
     await call('PATCH','/v1/circles/'+circleId+'/sharing',bobToken,{enabled:false},200);
     await call('GET','/v1/locations?userId='+bobId,aliceToken,null,404);
     await call('PATCH','/v1/circles/'+circleId+'/sharing',aliceToken,{enabled:false},200);

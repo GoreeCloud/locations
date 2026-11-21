@@ -63,6 +63,23 @@ export function pointInput(value) {
   }
   return { latitude, longitude, accuracyM, capturedAt: date.toISOString(), source, clientKey };
 }
+export function coordinateParam(value, low, high, name) {
+  if (typeof value !== 'string' || !/^-?\d{1,3}(?:\.\d{1,10})?$/.test(value)) {
+    throw new HttpError(400, 'Invalid ' + name);
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < low || n > high) throw new HttpError(400, 'Invalid ' + name);
+  return n;
+}
+export function radiusParam(value, fallback = 1000) {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value !== 'string' || !/^\d{1,5}(?:\.\d{1,2})?$/.test(value)) {
+    throw new HttpError(400, 'Invalid radius');
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1 || n > 25000) throw new HttpError(400, 'Radius out of range');
+  return n;
+}
 export function positiveLimit(value, fallback = 500, maximum = 1000) {
   if (value === null || value === undefined || value === '') return fallback;
   if (!/^\d+$/.test(String(value))) throw new HttpError(400, 'Invalid limit');
