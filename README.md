@@ -7,7 +7,7 @@
 ## Included now
 
 - **Web** — React/Vite dashboard, MapLibre map, opted-in OpenStreetMap map tiles, personal history, check-in, GeoJSON export, history erase, circles and invites, privacy controls.
-- **Android** — Kotlin + Jetpack Compose native client, current positions and history list, on-demand check-in and an individually started foreground tracking service with persistent Stop notification; no boot auto-start, no background-location permission, no offline queue. Real-device behavior is not yet accepted.
+- **Android** — Kotlin + Jetpack Compose native client, current positions and history list, on-demand check-in and user-started foreground tracking with Stop notification. It has bounded in-memory buffering/retries, periodic consent checks, and filters inaccurate/stale fixes; **no persisted offline queue**, boot auto-start or background-location permission. Physical-device behavior is not yet accepted.
 - **API** — Node 22 HTTP REST, locally authenticated owner + invitation-only accounts, scrypt password storage, short-lived invitation tokens and 30-day opaque sessions. The web Privacy tab can list active session timestamps and password-confirm revocation of all other sessions.
 - **Database** — PostgreSQL 17/PostGIS, private account tracks, circle membership, explicit opt-in sharing, bounded retention and spatial index. A read-only personal PostGIS radius API supports nearest-point history queries without sharing location data with other circle members or external geocoders.
 - **Trips and visits** — offline deterministic estimates of journeys and likely stays from your own stored samples, visible in the web History tab; no map matching, geocoding, attendance proof, arrival alerts, or automatic sharing.
@@ -42,7 +42,7 @@ npm run build
 cd apps/android && ./gradlew :app:assembleDebug
 ```
 
-The Android app uses a user-provided HTTPS server address. Foreground tracking is *opt-in each app process*, requires recording consent plus foreground location and notification permission, sends a fix only when movement or the OS delivers an update, and offers a persistent Stop notification. Sign-out or disabling recording stops the service. It does **not** request background-location permission, restart on boot, or persist/retry offline fixes. Debug builds can target a local HTTP emulator host. The web client holds session tokens in RAM (reload signs out), not localStorage.
+The Android app uses a user-provided HTTPS server address. Foreground tracking is *opt-in each app process*, requires recording consent plus foreground location and notification permission, sends a fix only when movement or the OS delivers an update, and offers a persistent Stop notification. Sign-out or disabling recording stops the service. It does **not** request background-location permission, restart on boot, or persist offline fixes after the service stops. It may retry up to three attempts while active; a bounded 64-fix RAM channel may discard older fixes during outages. Stop/sign-out attempts to cancel active transport calls; any request already accepted by the server may still commit, so server recording consent remains authoritative. Debug builds can target a local HTTP emulator host. The web client holds session tokens in RAM (reload signs out), not localStorage.
 
 ## Import an existing location history
 
