@@ -41,16 +41,36 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
   }
   try {
     await db.initialize();
+    // Inspect real PostGIS extension, policy constraints and privacy/replay indexes.
+    const postgis = await db.query("SELECT extname FROM pg_extension WHERE extname='postgis'");
+    assert.equal(postgis.rowCount,1,'PostGIS extension must be installed');
+    const indices = await db.query("SELECT indexname FROM pg_indexes WHERE schemaname=current_schema() AND tablename='positions'");
+    const indexNames = new Set(indices.rows.map(x=>x.indexname));
+    for (const name of ['positions_pkey','positions_account_time_idx','positions_account_client_key_idx','positions_geography_idx']) {
+      assert.ok(indexNames.has(name),'Missing required privacy/scalability index: '+name);
+    }
+    const constraints = await db.query("SELECT conname FROM pg_constraint WHERE conrelid='positions'::regclass");
+    const constraintNames = new Set(constraints.rows.map(x=>x.conname));
+    for (const name of ['positions_account_id_fkey','positions_latitude_check','positions_longitude_check','positions_accuracy_m_check']) {
+      assert.ok(constraintNames.has(name),'Missing required position constraint: '+name);
+    }
     const existing = await db.query('SELECT COUNT(*)::int AS n FROM accounts');
     assert.equal(existing.rows[0].n, 0, 'Integration DB must start empty');
     server.listen(0, '127.0.0.1');
     await once(server, 'listening');
     base = 'http://127.0.0.1:' + server.address().port;
     // The owner is created exactly once. Nothing is recorded or shared by default.
-    const initialized = await call('POST','/v1/auth/bootstrap',null, {
+    const bootstrapPayload = {
       bootstrapToken: 'synthetic-bootstrap-token-for-integration-testing-only',
       email: aliceEmail, password
-    },201);
+    };
+    const competing = await Promise.all([
+      call('POST','/v1/auth/bootstrap',null,bootstrapPayload),
+      call('POST','/v1/auth/bootstrap',null,bootstrapPayload)
+    ]);
+    assert.deepEqual(competing.map(x=>x.status).sort(),[201,409],
+      'Concurrent bootstrap requests must create exactly one owner');
+    const initialized = competing.find(x=>x.status===201);
     const alice = initialized.payload.account;
     const aliceToken = initialized.payload.token;
     assert.equal((await call('GET','/v1/me',aliceToken,null,200)).payload.account.recording_enabled,false);
@@ -76,12 +96,19 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     assert.equal((await call('GET','/v1/locations',aliceToken,null,200)).payload.positions.length,1);
     const circleId = (await call('POST','/v1/circles',aliceToken,{name:'Synthetic family'},201)).payload.circle.id;
     const inviteBob = (await call('POST','/v1/circles/'+circleId+'/invites',aliceToken,{},201)).payload.inviteToken;
-    const joinedBob = await call('POST','/v1/auth/join',null,{email:bobEmail,password,inviteToken:inviteBob},201);
+    const attempts = await Promise.all([
+      call('POST','/v1/auth/join',null,{email:bobEmail,password,inviteToken:inviteBob}),
+      call('POST','/v1/auth/join',null,{email:bobEmail,password,inviteToken:inviteBob})
+    ]);
+    assert.deepEqual(attempts.map(x=>x.status).sort(),[201,404],
+      'Concurrent redemptions of a single-use token must produce exactly one member');
+    const joinedBob = attempts.find(x=>x.status===201);
     const bobToken = joinedBob.payload.token;
     const bobId = joinedBob.payload.account.id;
     assert.equal((await call('GET','/v1/circles',bobToken,null,200)).payload.circles[0].sharing_enabled,false);
     // Token is one-use and cannot register or invite a different person.
     await call('POST','/v1/auth/join',null,{email:'duplicate-'+suffix+'@example.invalid',password,inviteToken:inviteBob},404);
+    await call('POST','/v1/auth/join',null,{email:'bad-'+suffix+'@example.invalid',password,inviteToken:'invalid-token'},400);
     await call('GET','/v1/locations?userId='+alice.id,bobToken,null,404);
     assert.equal((await call('GET','/v1/locations/latest',bobToken,null,200)).payload.positions.length,0);
     await call('PATCH','/v1/circles/'+circleId+'/sharing',aliceToken,{enabled:true},200);
@@ -116,6 +143,10 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     assert.equal(geo.type,'FeatureCollection');
     assert.equal(geo.features.length,1);
     assert.deepEqual(geo.features[0].geometry.coordinates,[-86.7,32.7]);
+    const beforeInvalidBatch = (await db.query('SELECT COUNT(*)::int AS n FROM positions WHERE account_id=$1',[bobId])).rows[0].n;
+    const oversized = await call('POST','/v1/locations/batch',bobToken,{ positions:Array(501).fill(point) },400);
+    assert.match(oversized.payload.error,/Invalid positions batch/);
+    assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM positions WHERE account_id=$1',[bobId])).rows[0].n,beforeInvalidBatch);
     const batch = await call('POST','/v1/locations/batch',bobToken,{
       positions:[{...point,latitude:40},{...point,latitude:99}]
     },400);
@@ -211,6 +242,12 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     await call('DELETE','/v1/me',currentAliceToken,{password,confirmation:'DELETE ACCOUNT'},409);
     await call('DELETE','/v1/circles/'+circleId,bobToken,{confirmName:'Synthetic family'},403);
     await call('DELETE','/v1/circles/'+circleId,currentAliceToken,{confirmName:'wrong name'},400);
+    // A member can leave without owner approval, immediately withdrawing location visibility.
+    await call('POST','/v1/circles/'+circleId+'/leave',bobToken,{},200);
+    await call('GET','/v1/locations?userId='+bobId,currentAliceToken,null,404);
+    await call('GET','/v1/locations?userId='+alice.id,bobToken,null,404);
+    assert.ok((await call('GET','/v1/locations',bobToken,null,200)).payload.positions.length>=1);
+    await call('POST','/v1/circles/'+circleId+'/leave',bobToken,{},404);
     await call('DELETE','/v1/circles/'+circleId,currentAliceToken,{confirmName:'Synthetic family'},200);
     assert.equal((await call('GET','/v1/circles',bobToken,null,200)).payload.circles.length,0);
     assert.ok((await db.query('SELECT COUNT(*)::int AS n FROM positions WHERE account_id=$1',[bobId])).rows[0].n >= 1);
