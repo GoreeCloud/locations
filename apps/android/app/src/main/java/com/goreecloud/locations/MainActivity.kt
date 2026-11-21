@@ -48,7 +48,7 @@ private val lightSurface = Color(0xFFF6F7FB)
 internal data class Session(val origin: String, val token: String)
 private enum class Screen(val label: String) { HOME("Home"), HISTORY("History"), CIRCLES("Circles"), PRIVACY("Privacy") }
 
-private fun validateOrigin(text: String): String {
+internal fun validateOrigin(text: String): String {
     val input = text.trim().trimEnd('/')
     val uri = try { URI(input) } catch (_: Exception) { throw IllegalArgumentException("Invalid server URL") }
     val host = uri.host ?: throw IllegalArgumentException("Server hostname required")
@@ -256,12 +256,11 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
                     }
                     TextButton(onClick = {
                         runAction {
+                            // End location collection before the network sign-out request.
+                            activity.stopService(Intent(activity, ForegroundTrackingService::class.java))
+                            ForegroundTracking.session = null
                             try { withContext(Dispatchers.IO) { request(session.origin, session.token, "/auth/logout", "POST", JSONObject()) } }
-                            finally {
-                                activity.stopService(Intent(activity, ForegroundTrackingService::class.java))
-                                ForegroundTracking.session = null
-                                onLogout()
-                            }
+                            finally { onLogout() }
                         }
                     }) { Text("Sign out") }
                 }
@@ -318,7 +317,7 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
                         ) { Text("◎ Check in now") }
                         Spacer(Modifier.height(12.dp))
                         Text("Optional foreground tracking", fontWeight = FontWeight.Bold)
-                        Text("Only after you start it, location may be sent while you use other apps. A persistent notification offers Stop. No automatic restarts or offline queue; network failures may lose fixes.", style = MaterialTheme.typography.bodySmall)
+                        Text("Only after you start it, recent accurate fixes may upload while other apps are open. A persistent notification offers Stop. Network errors get limited in-memory retries (max 64 queued); no offline storage, boot restart or guaranteed delivery.", style = MaterialTheme.typography.bodySmall)
                         if (ForegroundTracking.running) {
                             Text("● Foreground tracking active", color = MaterialTheme.colorScheme.primary)
                             Button(onClick = {
