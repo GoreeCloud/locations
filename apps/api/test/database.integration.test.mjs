@@ -5,6 +5,7 @@ import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { createDatabase } from '../src/database.mjs';
 import { makeHandler } from '../src/app.mjs';
+import { digest } from '../src/security.mjs';
 
 // Never point this test at real user data. Only localhost + explicitly named disposable DB.
 const rawUrl = process.env.TEST_DATABASE_URL;
@@ -39,6 +40,35 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     }
     return { status: res.status, payload };
   }
+  // Inject one synthetic session insert failure without changing PostGIS schema.
+  // Exercising the real transaction verifies rollback of the account, membership
+  // and used invitation when its first bearer session cannot be issued.
+  async function withSessionInsertFailure(run) {
+    let failNextSession = true;
+    const faultDb = {
+      ...db,
+      transaction: action => db.transaction(q => action((sql,params) => {
+        if (failNextSession && sql.startsWith('INSERT INTO sessions')) {
+          failNextSession = false;
+          throw new Error('synthetic session insert failure');
+        }
+        return q(sql,params);
+      }))
+    };
+    const faultServer = createServer(makeHandler(faultDb, {
+      bootstrapToken:'synthetic-bootstrap-token-for-integration-testing-only',
+      webOrigin:'http://localhost:5173'
+    }));
+    faultServer.listen(0,'127.0.0.1');
+    await once(faultServer,'listening');
+    const priorBase = base;
+    base = 'http://127.0.0.1:' + faultServer.address().port;
+    try { await run(); assert.equal(failNextSession,false,'Synthetic insert fault was not reached'); }
+    finally {
+      base = priorBase;
+      await new Promise(resolve => faultServer.close(resolve));
+    }
+  }
   try {
     await db.initialize();
     // Inspect real PostGIS extension, policy constraints and privacy/replay indexes.
@@ -59,6 +89,15 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     server.listen(0, '127.0.0.1');
     await once(server, 'listening');
     base = 'http://127.0.0.1:' + server.address().port;
+    // A failed first-session insert cannot permanently strand the one-time bootstrap.
+    await withSessionInsertFailure(async () => {
+      await call('POST','/v1/auth/bootstrap',null,{
+        bootstrapToken:'synthetic-bootstrap-token-for-integration-testing-only',
+        email:aliceEmail,password
+      },500);
+    });
+    assert.equal((await db.query('SELECT count(*)::integer AS n FROM accounts')).rows[0].n,0);
+    assert.equal((await db.query('SELECT count(*)::integer AS n FROM sessions')).rows[0].n,0);
     // The owner is created exactly once. Nothing is recorded or shared by default.
     const bootstrapPayload = {
       bootstrapToken: 'synthetic-bootstrap-token-for-integration-testing-only',
@@ -96,6 +135,14 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     assert.equal((await call('GET','/v1/locations',aliceToken,null,200)).payload.positions.length,1);
     const circleId = (await call('POST','/v1/circles',aliceToken,{name:'Synthetic family'},201)).payload.circle.id;
     const inviteBob = (await call('POST','/v1/circles/'+circleId+'/invites',aliceToken,{},201)).payload.inviteToken;
+    // A session-insert fault rolls back both new member and invite consumption.
+    await withSessionInsertFailure(async () => {
+      await call('POST','/v1/auth/join',null,{email:bobEmail,password,inviteToken:inviteBob},500);
+    });
+    assert.equal((await db.query('SELECT count(*)::integer AS n FROM accounts WHERE email=$1',[bobEmail])).rows[0].n,0);
+    assert.equal((await db.query(
+      'SELECT count(*)::integer AS n FROM invites WHERE token_hash=$1 AND used_at IS NULL',[digest(inviteBob)]
+    )).rows[0].n,1);
     const attempts = await Promise.all([
       call('POST','/v1/auth/join',null,{email:bobEmail,password,inviteToken:inviteBob}),
       call('POST','/v1/auth/join',null,{email:bobEmail,password,inviteToken:inviteBob})
