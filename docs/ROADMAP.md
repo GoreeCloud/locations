@@ -4,7 +4,7 @@ Status as of initial development source, not promised delivery dates.
 
 | Priority | Capability | Acceptance gate |
 | --- | --- | --- |
-| P0 | Owner bootstrap, login, self-controlled recording, history, privacy deletion | Real PostgreSQL integration tests and secure authentication review |
+| P0 | Owner bootstrap, login, self-controlled recording, history, privacy deletion | Real PostGIS tests cover concurrent bootstrap, session revocation, account deletion, schema constraints, and private history; an independent security review remains required before production |
 | P0 | Consent-scoped family circles and invite join | Cross-account negative authorization tests, consent revocation tests |
 | P0 | Web map and native Android check-in | Android assembleDebug plus physical foreground permission tests; browser map and keyboard/a11y review |
 | P0 | Reproducible CI & source code licensing | Valid clean builds, wrapper verification, license and upstream attribution readback |
