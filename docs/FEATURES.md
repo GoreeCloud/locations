@@ -16,7 +16,7 @@ This registry distinguishes implemented **source-level functionality** from plan
 | History | PostgreSQL/PostGIS position records with ISO capture time, accuracy, source, bounded list queries and last-known positions | Isolated real-database tests and production restore are separate acceptance gates |
 | Trip estimates | Personal, read-only route summaries using deterministic local distance and time heuristics | Web History summary and account-only API; not map-matched navigation, geofencing, or verified arrival evidence |
 | Visit estimates | Private, read-only cluster/stay estimates from own stored timestamps, coordinates and GPS accuracy | Web History and owner-only API; no POI attribution, notifications, geofences, attendance or safety claims |
-| Personal control | Configurable 1–365-day retention, backward-compatible GeoJSON export (up to 50,000 points), additional cursor-paged GeoJSON export, erase history, and password-confirmed account deletion | Export remains account-scoped; previously backed-up data may remain until backup expiry; owned shared circles must be explicitly deleted first |
+| Personal control | Configurable 1–365-day retention, 50k one-shot export, bounded cursor-paged GeoJSON API, and a private local export CLI with exclusive mode-0600 output; erase history and password-confirmed account deletion | Export never returns other accounts' records; previously backed-up data may remain until backup expiry; owned shared circles must be explicitly deleted first |
 | Circles | Create circle, owner-generated single-use 24-hour invitation, join/leave (non-owner), member listing, sharing settings and explicit owner deletion | Circle deletion revokes membership and invitations, not members' personal history; ownership transfer and advanced administration remain planned |
 | Imports | GeoJSON/Dawarich-compatible and Traccar REST importers with deterministic account-scoped retry keys | No upstream Traccar/Dawarich code embedded; repeated identical points from these importers are skipped, while keyless manual check-ins remain append-only |
 | Delivery | Reproducible npm workspace, Dockerfiles, Compose, API tests, Android Gradle wrapper, GitHub Actions | Alpha development source; no supported production deployment |
@@ -24,7 +24,7 @@ This registry distinguishes implemented **source-level functionality** from plan
 ## Planned or incomplete capabilities
 
 - Complete Android foreground-tracking real-device battery, permission revocation, standby, notification controls, and safe encrypted offline queue with idempotent replay; the initial opt-in foreground-service implementation is still an alpha preview.
-- Accurate native map, improved trip visualization, history filters and user-friendly client download of the existing paginated export endpoint.
+- Accurate native map, improved trip visualization, history filters and browser-native streaming export; the CLI supports paged personal GeoJSON without holding the complete export in memory.
 - Advanced Dawarich-style visit classification, map matching, visit editing/labels, route segmentation and richer history analysis beyond initial private heuristic trip and stay estimates.
 - Traccar device-protocol ingestion, device identity and token isolation, validated provenance and separate upstream licensing obligations.
 - Optional geofences and arrival/departure alerts with independent member consent, anti-stalking controls and GoreeCloud Notify/Mesh contracts.

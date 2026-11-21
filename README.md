@@ -66,6 +66,18 @@ IMPORT_API_TOKEN='...' API_URL=http://localhost:8080/api \
 
 Imports use deterministic per-point client keys, so resubmitting identical normalized points from the same importer is idempotent for an account. Other location writes without client keys remain append-only. Review files before upload; imported timestamps and source coordinates remain sensitive. Limit and format constraints are documented in [API](docs/API.md).
 
+## Export your complete location history
+
+The web dashboard's one-shot export has a 50,000-position limit. For larger personal histories, the local-first CLI reads the account-only paged API with bounded memory, writes a mode-0600 temporary file and publishes the final GeoJSON only after every page succeeds. It **never overwrites** an existing destination and removes partial exports on errors.
+
+Set `EXPORT_API_TOKEN` from your secret manager rather than typing a sensitive token into shell history. Set `API_URL` to your private HTTPS endpoint (plain HTTP is accepted only on loopback). Then run:
+
+```sh
+npm run export:geojson -- /path/to/private/locations.geojson
+```
+
+Optional `EXPORT_PAGE_SIZE` (1–5,000; default 3,000) and `EXPORT_MAX_POINTS` (1–5,000,000; default 2,000,000) bound API and disk usage. Protect the output and private backups: precise location histories can reveal people's homes and routines. Export reads can differ from a fixed snapshot if your history changes during downloading.
+
 ## Privacy-first operation
 
 - Recording **off** at account creation. No automatic background collection. Android foreground tracking starts only from a visible user action and shows a persistent Stop notification.
