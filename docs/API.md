@@ -41,6 +41,8 @@ Owner bootstrap requires `BOOTSTRAP_TOKEN` at least 32 characters and safe accou
 
 ## Import protocols
 
+The repository's GeoJSON and Traccar import CLIs accept at most 64 MiB of input JSON, at most 200,000 features per invocation, and upload in 250-point batches. Both enforce API_URL using HTTPS or loopback HTTP only, reject endpoint redirects, and use bounded network timeouts and response parsing. Traccar report requests require HTTPS and have a separate 45-second deadline. These importer checks do not replace authenticated server consent, cross-account protection, or safe data provenance.
+
 - GeoJSON importer uses each Point feature's coordinates [longitude, latitude] and one of `capturedAt`, `timestamp`, `time`, `recorded_at`; epoch-ms numeric timestamp accepted. Missing/invalid features are skipped.
 - Traccar report adapter calls GET `/api/reports/route?deviceId=...&from=...&to=...` with upstream Basic Auth over HTTPS. It reads Traccar `latitude`, `longitude`, `fixTime` / `deviceTime` / `serverTime`. It never transmits Traccar credentials to GoreeCloud API.
 

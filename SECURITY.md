@@ -13,6 +13,7 @@ Host and database operators can read unencrypted data at rest. Deploy only behin
 - Do not publish PostgreSQL ports or expose the development API without TLS.
 - Keep full URL/query/body logging disabled for the private location API.
 - Maintain authenticated rate limits and positive consent for new background/location features.
+- Run import scripts only with credentials from a secure environment. Their network calls reject redirects and require encrypted remote API endpoints; never embed a private token in API_URL. Import limits reduce resource risk but do not validate source data integrity or guarantee upstream trust.
 - Run `npm test`, `npm run build`, Android build and GitHub CI before release.
 - Complete database restore, denial-of-access, invitation expiry, account privacy, dependency and physical-device tests before production.
 - Use the [operator readiness and recovery checklist](docs/OPERATIONS.md) and read-only `scripts/verify-config.mjs` preflight; neither is a replacement for verified TLS, encrypted off-host backups or independent security acceptance.

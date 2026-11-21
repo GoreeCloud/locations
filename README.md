@@ -64,7 +64,7 @@ IMPORT_API_TOKEN='...' API_URL=http://localhost:8080/api \
   node scripts/import-traccar.mjs
 ```
 
-Imports use deterministic per-point client keys, so resubmitting identical normalized points from the same importer is idempotent for an account. Other location writes without client keys remain append-only. Review files before upload; imported timestamps and source coordinates remain sensitive. Limit and format constraints are documented in [API](docs/API.md).
+Imports use deterministic per-point client keys, so resubmitting identical normalized points from the same importer is idempotent for an account. Other location writes without client keys remain append-only. Import CLIs enforce 64 MiB source limits, bounded 250-point uploads, request timeouts, no HTTP redirects, and HTTPS for API endpoints except explicit loopback HTTP. Traccar reports also require HTTPS and bounded response parsing. These are input safeguards, not proof of secure upstream server operation. Review files before upload; imported timestamps and source coordinates remain sensitive. Limit and format constraints are documented in [API](docs/API.md).
 
 ## Export your complete location history
 
