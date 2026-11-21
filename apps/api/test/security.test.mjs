@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emailAddress, hashPassword, verifyPassword, pointInput, positiveLimit,
-  secureEquals, uuid, HttpError, newToken
+  secureEquals, uuid, HttpError, newToken, coordinateInput, radiusInput
 } from '../src/security.mjs';
 
 test('email canonicalization and rejection', () => {
@@ -46,6 +46,19 @@ test('client idempotency key validation', () => {
     assert.throws(() => pointInput({ latitude: 0, longitude: 0, clientKey: value }), HttpError);
   }
   assert.equal(pointInput({ latitude: 0, longitude: 0 }).clientKey, null);
+});
+test('private geospatial JSON body requires finite, bounded numeric coordinates and radius', () => {
+  assert.equal(coordinateInput(-86.7,-180,180,'longitude'),-86.7);
+  assert.equal(coordinateInput(90,-90,90,'latitude'),90);
+  assert.equal(radiusInput(undefined),1000);
+  assert.equal(radiusInput(25000),25000);
+  assert.equal(radiusInput(12.5),12.5);
+  for (const invalid of [91,-91,NaN,Infinity,'91','NaN','0;DROP TABLE',' 1',null]) {
+    assert.throws(()=>coordinateInput(invalid,-90,90,'latitude'),HttpError);
+  }
+  for (const invalid of [0,25001,Infinity,-1,NaN,'250','4 km',null,{}]) {
+    assert.throws(()=>radiusInput(invalid),HttpError);
+  }
 });
 test('pagination is bounded and numeric', () => {
   assert.equal(positiveLimit(null), 500);

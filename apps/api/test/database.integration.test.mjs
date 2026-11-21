@@ -128,6 +128,23 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
       email:charlieEmail,password,inviteToken:inviteCharlie
     },201)).payload.token;
     await call('GET','/v1/locations?userId='+bobId,charlieToken,null,404);
+    // No coordinates in URLs: spatial search accepts authenticated JSON POST bodies only.
+    // Shared circle membership never grants this personal PostGIS vicinity endpoint.
+    const vicinity = {latitude:32.8,longitude:-86.7,radiusMeters:200};
+    const nearbyBob = (await call('POST','/v1/locations/nearby',bobToken,vicinity,200)).payload;
+    assert.ok(nearbyBob.positions.some(p=>Math.abs(p.latitude-32.8)<0.000001));
+    assert.ok(nearbyBob.positions.every(p=>Number(p.distance_m)<=200));
+    assert.equal(nearbyBob.radiusMeters,200);
+    assert.equal((await call('POST','/v1/locations/nearby',aliceToken,vicinity,200)).payload.positions.length,0);
+    assert.equal((await call('POST','/v1/locations/nearby',charlieToken,vicinity,200)).payload.positions.length,0);
+    assert.equal((await call('POST','/v1/locations/nearby',aliceToken,{...vicinity,latitude:32.7},200)).payload.positions.length,1);
+    await call('POST','/v1/locations/nearby',aliceToken,{...vicinity,userId:bobId},400);
+    await call('POST','/v1/locations/nearby',bobToken,{...vicinity,latitude:91},400);
+    await call('POST','/v1/locations/nearby',bobToken,{...vicinity,longitude:-181},400);
+    await call('POST','/v1/locations/nearby',bobToken,{...vicinity,radiusMeters:0},400);
+    await call('POST','/v1/locations/nearby',bobToken,{...vicinity,limit:1001},400);
+    await call('POST','/v1/locations/nearby',bobToken,{...vicinity,latitude:'32.8'},400);
+    await call('POST','/v1/locations/nearby?unexpected=yes',bobToken,vicinity,400);
     await call('PATCH','/v1/circles/'+circleId+'/sharing',bobToken,{enabled:false},200);
     await call('GET','/v1/locations?userId='+bobId,aliceToken,null,404);
     await call('PATCH','/v1/circles/'+circleId+'/sharing',aliceToken,{enabled:false},200);

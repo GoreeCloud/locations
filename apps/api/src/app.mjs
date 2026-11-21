@@ -1,4 +1,4 @@
-import { HttpError, digest, newToken, secureEquals, emailAddress, passwordInput, hashPassword, verifyPassword, uuid, pointInput, positiveLimit } from './security.mjs';
+import { HttpError, digest, newToken, secureEquals, emailAddress, passwordInput, hashPassword, verifyPassword, uuid, pointInput, positiveLimit, coordinateInput, radiusInput } from './security.mjs';
 import { inferTrips } from './trips.mjs';
 import { inferVisits } from './visits.mjs';
 
@@ -215,6 +215,31 @@ export function makeHandler(db, options) {
         [owner,from,until,limit,me.id]
       );
       return json(res, 200, { userId: owner, positions: rows.rows });
+    }
+    if (req.method === 'POST' && path === '/v1/locations/nearby') {
+      // Personal-only spatial search: never put coordinates in URLs or proxy access logs.
+      if (url.search) throw new HttpError(400, 'Location search parameters belong in the JSON body');
+      const input = await body(req);
+      if (Object.hasOwn(input,'userId')) throw new HttpError(400, 'Nearby searches are personal only');
+      const latitude = coordinateInput(input.latitude, -90, 90, 'latitude');
+      const longitude = coordinateInput(input.longitude, -180, 180, 'longitude');
+      const radiusMeters = radiusInput(input.radiusMeters);
+      const limit = positiveLimit(input.limit, 200, 1000);
+      const from = timestamp(input.from, new Date(Date.now()-30*daysMs).toISOString());
+      const until = timestamp(input.until, new Date().toISOString());
+      if (new Date(from) > new Date(until)) throw new HttpError(400, 'Invalid date range');
+      const r = await db.query(
+        `SELECT p.id,p.latitude,p.longitude,p.accuracy_m,p.captured_at,p.source,
+           ST_Distance(ST_SetSRID(ST_MakePoint(p.longitude,p.latitude),4326)::geography,
+             ST_SetSRID(ST_MakePoint($4::double precision,$5::double precision),4326)::geography) AS distance_m
+         FROM positions p
+         WHERE p.account_id=$1 AND p.captured_at BETWEEN $2 AND $3
+           AND ST_DWithin(ST_SetSRID(ST_MakePoint(p.longitude,p.latitude),4326)::geography,
+             ST_SetSRID(ST_MakePoint($4::double precision,$5::double precision),4326)::geography,$6::double precision)
+         ORDER BY distance_m ASC,p.captured_at DESC,p.id DESC LIMIT $7`,
+        [me.id,from,until,longitude,latitude,radiusMeters,limit]
+      );
+      return json(res, 200, { positions:r.rows, radiusMeters });
     }
     if (req.method === 'GET' && path === '/v1/trips') {
       if (url.searchParams.has('userId')) throw new HttpError(400, 'Trip summaries are personal only');
