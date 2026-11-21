@@ -225,11 +225,39 @@ export function makeHandler(db, options) {
         'SELECT latitude,longitude,accuracy_m,captured_at,source FROM positions WHERE account_id=$1 ORDER BY captured_at DESC,id DESC LIMIT 50001',
         [me.id]
       );
-      if (r.rows.length > 50000) throw new HttpError(413, 'Export exceeds 50,000 positions; export in smaller ranges is not yet implemented');
+      if (r.rows.length > 50000) throw new HttpError(413, 'Export exceeds 50,000 positions; use /v1/export/geojson/page to download bounded pages');
       return json(res, 200, { type: 'FeatureCollection', features: r.rows.map(p => ({
         type: 'Feature', geometry: { type: 'Point', coordinates: [p.longitude,p.latitude] },
         properties: { capturedAt: p.captured_at, accuracyM: p.accuracy_m, source: p.source }
       })) });
+    }
+    if (req.method === 'GET' && path === '/v1/export/geojson/page') {
+      const limit = positiveLimit(url.searchParams.get('limit'), 1000, 5000);
+      const rawCursor = url.searchParams.get('beforeId');
+      const beforeId = rawCursor === null ? null : rawCursor;
+      if (beforeId !== null && (!/^[1-9][0-9]{0,18}$/.test(beforeId) ||
+          BigInt(beforeId) > 9223372036854775807n)) {
+        throw new HttpError(400, 'Invalid export cursor');
+      }
+      // Descending numeric IDs form a stable account-scoped keyset under new writes.
+      // The extra row detects whether another page exists without exposing its contents.
+      const r = await db.query(
+        'SELECT id,latitude,longitude,accuracy_m,captured_at,source FROM positions WHERE account_id=$1 AND ($2::bigint IS NULL OR id<$2::bigint) ORDER BY id DESC LIMIT $3',
+        [me.id,beforeId,limit+1]
+      );
+      const rows = r.rows.slice(0,limit);
+      const hasMore = r.rows.length > limit;
+      return json(res, 200, {
+        type:'FeatureCollection',
+        features: rows.map(p => ({
+          type:'Feature',
+          id:String(p.id),
+          geometry:{type:'Point',coordinates:[p.longitude,p.latitude]},
+          properties:{capturedAt:p.captured_at,accuracyM:p.accuracy_m,source:p.source}
+        })),
+        nextBeforeId:hasMore ? String(rows[rows.length-1].id) : null,
+        hasMore
+      });
     }
     if (req.method === 'DELETE' && path === '/v1/me/locations') {
       const r = await db.query('DELETE FROM positions WHERE account_id=$1', [me.id]);
