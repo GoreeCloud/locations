@@ -1,4 +1,4 @@
-import { HttpError, digest, newToken, secureEquals, emailAddress, passwordInput, hashPassword, verifyPassword, uuid, pointInput, positiveLimit, coordinateParam, radiusParam } from './security.mjs';
+import { HttpError, digest, newToken, secureEquals, emailAddress, passwordInput, hashPassword, verifyPassword, uuid, pointInput, positiveLimit, coordinateInput, radiusInput } from './security.mjs';
 import { inferTrips } from './trips.mjs';
 import { inferVisits } from './visits.mjs';
 
@@ -216,15 +216,17 @@ export function makeHandler(db, options) {
       );
       return json(res, 200, { userId: owner, positions: rows.rows });
     }
-    if (req.method === 'GET' && path === '/v1/locations/nearby') {
-      // Personal-only geospatial query. Circle membership never grants this endpoint.
-      if (url.searchParams.has('userId')) throw new HttpError(400, 'Nearby searches are personal only');
-      const latitude = coordinateParam(url.searchParams.get('latitude'), -90, 90, 'latitude');
-      const longitude = coordinateParam(url.searchParams.get('longitude'), -180, 180, 'longitude');
-      const radiusMeters = radiusParam(url.searchParams.get('radiusMeters'));
-      const limit = positiveLimit(url.searchParams.get('limit'), 200, 1000);
-      const from = timestamp(url.searchParams.get('from'), new Date(Date.now()-30*daysMs).toISOString());
-      const until = timestamp(url.searchParams.get('until'), new Date().toISOString());
+    if (req.method === 'POST' && path === '/v1/locations/nearby') {
+      // Personal-only spatial search: never put coordinates in URLs or proxy access logs.
+      if (url.search) throw new HttpError(400, 'Location search parameters belong in the JSON body');
+      const input = await body(req);
+      if (Object.hasOwn(input,'userId')) throw new HttpError(400, 'Nearby searches are personal only');
+      const latitude = coordinateInput(input.latitude, -90, 90, 'latitude');
+      const longitude = coordinateInput(input.longitude, -180, 180, 'longitude');
+      const radiusMeters = radiusInput(input.radiusMeters);
+      const limit = positiveLimit(input.limit, 200, 1000);
+      const from = timestamp(input.from, new Date(Date.now()-30*daysMs).toISOString());
+      const until = timestamp(input.until, new Date().toISOString());
       if (new Date(from) > new Date(until)) throw new HttpError(400, 'Invalid date range');
       const r = await db.query(
         `SELECT p.id,p.latitude,p.longitude,p.accuracy_m,p.captured_at,p.source,
