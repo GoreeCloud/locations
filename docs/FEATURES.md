@@ -29,7 +29,7 @@ This registry distinguishes implemented **source-level functionality** from plan
 - Traccar device-protocol ingestion, device identity and token isolation, validated provenance and separate upstream licensing obligations.
 - Optional geofences and arrival/departure alerts with independent member consent, anti-stalking controls and GoreeCloud Notify/Mesh contracts.
 - Family safety experiences that clearly distinguish stale positions, geolocation error and voluntary sharing; no emergency reliability claim.
-- Personal account deletion and circle lifecycle management, session inventory/revocation, OIDC/MFA and hardened API token management.
-- Audited encrypted backups, disaster-recovery rehearsals, private map-tile hosting, real-world device acceptance and public TLS deployment.
+- Advanced circle ownership transfer and invitation administration, device-scoped token lifecycle, OIDC/MFA, audit visibility and hardened identity integration beyond the implemented account deletion and session-revocation controls.
+- Production-validated encrypted/off-site backups and restore rehearsals, private map-tile hosting, real-world device acceptance and public TLS deployment; synthetic container recovery testing alone is insufficient.
 
 See [objectives](OBJECTIVES.md), [roadmap](ROADMAP.md), [architecture](ARCHITECTURE.md), and [privacy](PRIVACY.md). Implementation and validation status must remain evidence-based.
