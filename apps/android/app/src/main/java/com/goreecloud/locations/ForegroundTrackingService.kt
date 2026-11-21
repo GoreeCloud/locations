@@ -25,7 +25,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -56,12 +55,14 @@ internal object ForegroundTracking {
         internal set
     var lastProblem by mutableStateOf("")
         internal set
+    var droppedFixes by mutableStateOf(0)
+        internal set
 }
 
 class ForegroundTrackingService : Service(), LocationListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val network = OkHttpClient.Builder().followRedirects(false).callTimeout(20,TimeUnit.SECONDS).build()
-    private val pending = Channel<JSONObject>(64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val pending = Channel<JSONObject>(64) // Backpressure: full queue rejects fixes, never silently evicts an older one.
     private var manager: LocationManager? = null
     private var subscribed = false
     private var workersStarted = false
@@ -85,6 +86,9 @@ class ForegroundTrackingService : Service(), LocationListener {
     }
 
     private fun stopWithProblem(problem: String) {
+        // Withdraw local consent immediately, before the main thread delivers onDestroy.
+        ForegroundTracking.running = false
+        ForegroundTracking.session = null
         ForegroundTracking.lastProblem = problem
         stopSelf()
     }
@@ -139,6 +143,7 @@ class ForegroundTrackingService : Service(), LocationListener {
                 subscribed = true
             }
             ForegroundTracking.lastProblem = ""
+            ForegroundTracking.droppedFixes = 0
             ForegroundTracking.running = true
             if (!workersStarted) {
                 workersStarted = true
@@ -262,7 +267,9 @@ class ForegroundTrackingService : Service(), LocationListener {
             return
         }
         val now = System.currentTimeMillis()
-        if (!location.hasAccuracy() || !location.accuracy.isFinite() ||
+        if (!location.latitude.isFinite() || !location.longitude.isFinite() ||
+            location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0 ||
+            !location.hasAccuracy() || !location.accuracy.isFinite() ||
             location.accuracy < 0f || location.accuracy > 250f ||
             location.time < now - 5 * 60000L || location.time > now + 60000L) {
             ForegroundTracking.lastProblem = "A stale or inaccurate location fix was ignored."
@@ -275,7 +282,10 @@ class ForegroundTrackingService : Service(), LocationListener {
             .put("source", "android_foreground")
             // Stable for all retries of this fix and scoped to the account on the server.
             .put("clientKey", "androidfg_" + UUID.randomUUID().toString())
-        pending.trySend(payload)
+        if (pending.trySend(payload).isFailure) {
+            ForegroundTracking.droppedFixes++
+            ForegroundTracking.lastProblem = "Location buffer full. A new fix was dropped; no fix was stored offline."
+        }
     }
 
     override fun onProviderDisabled(provider: String) {
@@ -287,6 +297,7 @@ class ForegroundTrackingService : Service(), LocationListener {
             try { manager?.removeUpdates(this) } catch (_: Exception) { }
             subscribed = false
         }
+        ForegroundTracking.running = false
         scope.cancel()
         network.dispatcher.cancelAll()
         network.connectionPool.evictAll()
