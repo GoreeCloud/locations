@@ -105,6 +105,8 @@ function Dashboard({ token, onLogout }) {
   const [history,setHistory] = useState([]);
   const [trips,setTrips] = useState([]);
   const [tripsTruncated,setTripsTruncated] = useState(false);
+  const [visits,setVisits] = useState([]);
+  const [visitsTruncated,setVisitsTruncated] = useState(false);
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
   const [tiles,setTiles] = useState(false);
@@ -121,11 +123,13 @@ function Dashboard({ token, onLogout }) {
     try { await operation(); } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
   async function refresh() {
-    const [account, group, current, old, journeys, activeSessions] = await Promise.all([
-      api('/v1/me',token),api('/v1/circles',token),api('/v1/locations/latest',token),api('/v1/locations?limit=500',token),api('/v1/trips',token),api('/v1/me/sessions',token)
+    const [account, group, current, old, journeys, stays, activeSessions] = await Promise.all([
+      api('/v1/me',token),api('/v1/circles',token),api('/v1/locations/latest',token),api('/v1/locations?limit=500',token),
+      api('/v1/trips',token),api('/v1/visits',token),api('/v1/me/sessions',token)
     ]);
     setMe(account.account); setCircles(group.circles); setLatest(current.positions); setHistory(old.positions);
-    setTrips(journeys.trips); setTripsTruncated(journeys.truncated); setSessions(activeSessions.sessions);
+    setTrips(journeys.trips); setTripsTruncated(journeys.truncated);
+    setVisits(stays.visits); setVisitsTruncated(stays.truncated); setSessions(activeSessions.sessions);
   }
   useEffect(() => { refresh().catch(err => setError(err.message)); }, [token]);
   async function checkIn() {
@@ -197,6 +201,23 @@ function Dashboard({ token, onLogout }) {
             <div className="trip-metrics"><span><strong>{(t.distanceMeters/1000).toFixed(1)}</strong> km estimated</span><span><strong>{Math.round(t.durationSeconds/60)}</strong> min</span><span><strong>{t.pointCount}</strong> fixes</span></div>
           </article>)}
         </div> : <p className="empty">No trips estimated yet. Several accurate, timestamped movement points are needed.</p>}
+      </section>}
+      {tab==='history' && <section className="panel" aria-label="Estimated visits">
+        <h2>Estimated visits</h2>
+        <p className="muted">A private, on-server estimate of where your saved fixes remained near the same location for at least 10 minutes. No geocoding, alerts, sharing, or proof of attendance.</p>
+        {visitsTruncated && <p role="status" className="muted">Only a bounded sample was analyzed. Older visits may be omitted.</p>}
+        {visits.length ? <div className="trip-cards">
+          {visits.map((v,i)=><article className="trip-card" key={v.arrivedAt+'-'+i}>
+            <div className="trip-card-title"><span className="person" aria-hidden="true">◷</span><div>
+              <strong>{fmt(v.arrivedAt)}</strong><small>Last nearby fix {fmt(v.departedAt)}</small>
+            </div></div>
+            <div className="trip-metrics">
+              <span><strong>{Math.round(v.durationSeconds/60)}</strong> min estimated</span>
+              <span><strong>{v.pointCount}</strong> fixes</span>
+            </div>
+            <p className="muted">Approx. center: {Number(v.latitude).toFixed(5)}, {Number(v.longitude).toFixed(5)}</p>
+          </article>)}
+        </div> : <p className="empty">No estimated visits yet. Multiple nearby, accurate fixes over time are needed.</p>}
       </section>}
       {tab==='circles' && <><div className="page-head"><div><span className="eyebrow">TRUSTED PEOPLE</span><h1>Circles</h1><p>Sharing is off by default for every member. A circle cannot turn it on for you.</p></div></div>
         <div className="two-col">

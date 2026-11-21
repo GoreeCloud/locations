@@ -25,7 +25,7 @@ All first-party source, vendored design tokens, builds, container definitions an
 
 - Not equivalent to Life360: an opt-in Android foreground tracking preview exists, but background-location permission, boot auto-start, durable offline sync, verified geofences/arrival-departure, distress/SOS, safety escalation, notification delivery, fine-grained contact invitations and abuse acceptance are **not implemented**.
 - Not a full Traccar protocol receiver: only Traccar REST route-import adapter; no GPS tracker TCP/UDP device-protocol service imported. Traccar itself is not embedded or running.
-- Not a Dawarich fork: GeoJSON interchange and initial deterministic, account-private trip estimates are supported; visit analytics, map matching, heatmaps, AI classification and full Dawarich analysis are not present.
+- Not a Dawarich fork: GeoJSON interchange and initial deterministic, account-private trip and stay estimates are supported; place labeling/editing, rich visit analytics, map matching, heatmaps, AI classification and complete Dawarich analysis are not present.
 - The server uses a simple initial SQL schema migration; future changes need versioned, transactional migrations.
 - Password-confirmed account deletion and owner-confirmed circle deletion are implemented, but session management UI, circle ownership transfer, per-device API tokens, quotas, rate-limit persistence, encryption-at-rest key management, audit logs, backup restore and hardened public deployment remain unimplemented.
 - Android shows a native list, not yet a native embedded map. Background collection is intentionally absent.
