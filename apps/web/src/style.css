@@ -82,6 +82,12 @@ label{font-size:.83rem;font-weight:670;display:flex;flex-direction:column;gap:8p
 input:not([type=checkbox]),select{height:44px;border:1px solid var(--gc-outline-soft);border-radius:11px;padding:10px 12px;background:var(--gc-surface);color:var(--gc-text);width:100%}
 select{width:auto;min-width:110px}
 .panel form{margin:12px 0 22px}
+.vicinity-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) minmax(150px,.6fr);column-gap:14px;row-gap:6px;align-items:end}
+.vicinity-form label{min-width:0}
+.vicinity-form select{width:100%}
+.vicinity-actions{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.vicinity-actions .button{min-height:42px}
+@media(max-width:760px){.vicinity-form{grid-template-columns:minmax(0,1fr)}.vicinity-actions{display:grid;grid-template-columns:1fr}.vicinity-actions .button{width:100%}}
 .delete-account-form{max-width:480px;display:flex;flex-direction:column;gap:3px}
 .delete-account-form .button{align-self:flex-start}
 .panel hr{border:0;border-top:1px solid var(--gc-outline-soft);margin:26px 0}

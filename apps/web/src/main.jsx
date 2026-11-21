@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as maplibregl from 'maplibre-gl';
+import { nearbyBody } from './nearby.mjs';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../../vendor/gc-ui/tokens.css';
 import './style.css';
@@ -95,6 +96,83 @@ function AuthScreen({ onToken }) {
       </form>
     </div>
   </main>;
+}
+function NearbyHistory({ token, latestPersonalFix }) {
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [radius, setRadius] = useState('1000');
+  const [positions, setPositions] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  function clear() {
+    setLatitude(''); setLongitude(''); setRadius('1000'); setError(''); setPositions(null);
+  }
+  async function submit(e) {
+    e.preventDefault();
+    setError(''); setPositions(null); setBusy(true);
+    try {
+      // No saved browser coordinates, no URL params or external tile/geocoder request.
+      const body = nearbyBody(latitude, longitude, radius);
+      const result = await api('/v1/locations/nearby', token, 'POST', body);
+      if (!Array.isArray(result.positions)) throw new Error('Unexpected private search response.');
+      setPositions(result.positions);
+    } catch (err) {
+      setError(err.message || 'Private search failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="panel" aria-label="Search your personal location history">
+    <h2>Find your own nearby check-ins</h2>
+    <p className="muted">Search only your stored history within a radius. Enter coordinates or choose a previously saved check-in. No live location permission, shared-circle access, public map tiles, or external place lookup is used.</p>
+    <form onSubmit={submit} className="vicinity-form">
+      <label>Latitude
+        <input aria-label="Search latitude" type="number" min="-90" max="90" step="any"
+          required value={latitude} onChange={e => setLatitude(e.target.value)}
+          placeholder="e.g. 32.7" />
+      </label>
+      <label>Longitude
+        <input aria-label="Search longitude" type="number" min="-180" max="180" step="any"
+          required value={longitude} onChange={e => setLongitude(e.target.value)}
+          placeholder="e.g. -86.7" />
+      </label>
+      <label>Radius
+        <select value={radius} onChange={e => setRadius(e.target.value)} aria-label="Search radius">
+          <option value="250">250 meters</option>
+          <option value="1000">1 kilometer</option>
+          <option value="5000">5 kilometers</option>
+          <option value="25000">25 kilometers</option>
+        </select>
+      </label>
+      <div className="vicinity-actions">
+        <button className="button primary" disabled={busy || !latitude.trim() || !longitude.trim()}>
+          {busy ? 'Searching privately…' : 'Find nearby check-ins'}
+        </button>
+        {latestPersonalFix && <button className="button secondary" type="button" disabled={busy}
+          onClick={() => {
+            setLatitude(Number(latestPersonalFix.latitude).toFixed(7));
+            setLongitude(Number(latestPersonalFix.longitude).toFixed(7));
+            setPositions(null); setError('');
+          }}>Use latest saved check-in</button>}
+        <button className="button secondary" type="button" disabled={busy} onClick={clear}>Clear form and results</button>
+      </div>
+    </form>
+    {error && <p role="alert" className="error">{error}</p>}
+    {positions !== null && <div>
+      <p className="muted" role="status" aria-live="polite">{positions.length} personal check-in{positions.length === 1 ? '' : 's'} found in the last 30 days (up to 100 closest).</p>
+      {positions.length ? <div className="entry-list">
+        {positions.map(p => <div className="entry" key={p.id}>
+          <span className="person" aria-hidden="true">⌖</span>
+          <div><strong>{fmt(p.captured_at)}</strong>
+            <small>{Math.round(Number(p.distance_m))} meters from search point · {p.source}</small>
+          </div>
+          <span className="coords">{Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}</span>
+        </div>)}
+      </div> : <p className="empty">No saved check-ins are within the selected radius and time range.</p>}
+    </div>}
+  </section>;
 }
 const nav = [['overview','◫','Overview'],['history','◷','History'],['circles','◎','Circles'],['privacy','◇','Privacy']];
 function Dashboard({ token, onLogout }) {
@@ -191,6 +269,7 @@ function Dashboard({ token, onLogout }) {
         <div className="panel"><h2>Last known positions</h2>{!latest.length?<p className="empty">No location is visible yet. Enable recording in Privacy and check in when you choose.</p>:<div className="entry-list">{latest.map(p=><div key={p.user_id} className="entry"><span className="person">{p.user_id===me.id?'Y':p.email[0].toUpperCase()}</span><div><strong>{p.user_id===me.id?'You':p.email}</strong><small>{fmt(p.captured_at)}</small></div><span className="coords">{Number(p.latitude).toFixed(4)}, {Number(p.longitude).toFixed(4)}</span></div>)}</div>}</div>
       </>}
       {tab==='history' && <><div className="page-head"><div><span className="eyebrow">PRIVATE JOURNAL</span><h1>Your timeline</h1><p>Your history stays available to you, even when circle sharing is disabled.</p></div><button className="button secondary" onClick={()=>execute(downloadExport)} disabled={busy}>Export GeoJSON</button></div><div className="panel"><h2>Recent positions</h2><p className="muted">Showing up to 500 of your latest positions from the past 30 days.</p>{history.length?<div className="entry-list">{history.map(p=><div className="entry" key={p.id}><span className="person">⌁</span><div><strong>{fmt(p.captured_at)}</strong><small>{p.source} {p.accuracy_m!=null?'· ±'+Math.round(p.accuracy_m)+' m':''}</small></div><span className="coords">{Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}</span></div>)}</div>:<p className="empty">No history recorded in the past 30 days.</p>}</div></>}
+      {tab==='history' && <NearbyHistory token={token} latestPersonalFix={history[0]}/>}
       {tab==='history' && <section className="panel" aria-label="Estimated trips">
         <h2>Estimated trips</h2>
         <p className="muted">Trips are calculated locally on your server from your saved points. Distances are estimates, not map-matched routes or arrival confirmations.</p>
