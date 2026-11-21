@@ -13,6 +13,7 @@
     "build": "npm run build -w @goreecloud/locations-web",
     "check": "npm run test && npm run build",
     "import:geojson": "node scripts/import-geojson.mjs",
-    "import:traccar": "node scripts/import-traccar.mjs"
+    "import:traccar": "node scripts/import-traccar.mjs",
+    "export:geojson": "node scripts/export-geojson.mjs"
   }
 }
