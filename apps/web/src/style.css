@@ -84,6 +84,7 @@ select{width:auto;min-width:110px}
 .panel form{margin:12px 0 22px}
 .vicinity-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) minmax(150px,.6fr);column-gap:14px;row-gap:6px;align-items:end}
 .vicinity-form label{min-width:0}
+.vicinity-form .vicinity-wide{grid-column:1/-1}
 .vicinity-form select{width:100%}
 .vicinity-actions{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .vicinity-actions .button{min-height:42px}
