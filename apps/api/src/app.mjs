@@ -96,15 +96,18 @@ export function makeHandler(db, options) {
       if (!secureEquals(input.bootstrapToken, options.bootstrapToken)) throw new HttpError(401, 'Invalid bootstrap credentials');
       const email = emailAddress(input.email);
       const password = await hashPassword(passwordInput(input.password));
-      const account = await db.transaction(async q => {
+      const initialized = await db.transaction(async q => {
         await q('SELECT pg_advisory_xact_lock(83528027)');
         const existing = await q('SELECT EXISTS (SELECT 1 FROM accounts) AS found');
         if (existing.rows[0].found) throw new HttpError(409, 'Server already initialized');
         const created = await q('INSERT INTO accounts(email,password_hash) VALUES ($1,$2) RETURNING id,email', [email,password]);
-        return created.rows[0];
+        const account = created.rows[0];
+        // Commit initial owner and their usable session together. A failed insert
+        // must never strand bootstrap with an account but no sign-in token.
+        const session = await issueSession(q, account.id);
+        return { account, ...session };
       });
-      const session = await issueSession(db.query, account.id);
-      return json(res, 201, { account, ...session });
+      return json(res, 201, initialized);
     }
     if (req.method === 'POST' && path === '/v1/auth/login') {
       limiter.checkIp(req.socket.remoteAddress, 'login');
@@ -124,16 +127,19 @@ export function makeHandler(db, options) {
       if (!/^[A-Za-z0-9_-]{32,128}$/.test(inviteToken)) throw new HttpError(400, 'Invalid invitation');
       const email = emailAddress(input.email);
       const password = await hashPassword(passwordInput(input.password));
-      const account = await db.transaction(async q => {
+      const joined = await db.transaction(async q => {
         const invitation = await q('SELECT circle_id FROM invites WHERE token_hash=$1 AND expires_at>now() AND used_at IS NULL FOR UPDATE', [digest(inviteToken)]);
         if (!invitation.rowCount) throw new HttpError(404, 'Invitation expired or used');
         const created = await q('INSERT INTO accounts(email,password_hash) VALUES ($1,$2) RETURNING id,email', [email,password]);
         await q('INSERT INTO circle_members(circle_id,account_id) VALUES ($1,$2)', [invitation.rows[0].circle_id,created.rows[0].id]);
         await q('UPDATE invites SET used_at=now() WHERE token_hash=$1', [digest(inviteToken)]);
-        return created.rows[0];
+        const account = created.rows[0];
+        // Membership and one-use invitation redemption remain reversible if
+        // the new account's first authenticated session cannot be inserted.
+        const session = await issueSession(q, account.id);
+        return { account, ...session };
       });
-      const session = await issueSession(db.query, account.id);
-      return json(res, 201, { account, ...session });
+      return json(res, 201, joined);
     }
     const me = await authenticated(req);
     if (req.method === 'POST' && path === '/v1/auth/logout') {

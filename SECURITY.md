@@ -9,6 +9,7 @@ Host and database operators can read unencrypted data at rest. Deploy only behin
 ## Security development requirements
 
 - No hard-coded cloud API credentials or private keys. Use uncommitted environment secrets.
+- First-owner bootstrap and invitation-only account creation issue the first bearer session **in the same PostgreSQL transaction** as account creation. If the session insertion fails, the account, invitation use, and membership creation roll back together; retry is possible.
 - Do not start the service with example credentials.
 - Do not publish PostgreSQL ports or expose the development API without TLS.
 - Keep full URL/query/body logging disabled for the private location API.
