@@ -15,3 +15,4 @@ Host and database operators can read unencrypted data at rest. Deploy only behin
 - Maintain authenticated rate limits and positive consent for new background/location features.
 - Run `npm test`, `npm run build`, Android build and GitHub CI before release.
 - Complete database restore, denial-of-access, invitation expiry, account privacy, dependency and physical-device tests before production.
+- Use the [operator readiness and recovery checklist](docs/OPERATIONS.md) and read-only `scripts/verify-config.mjs` preflight; neither is a replacement for verified TLS, encrypted off-host backups or independent security acceptance.

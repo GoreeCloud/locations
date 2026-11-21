@@ -12,6 +12,7 @@
     "test:integration": "npm run test:integration -w @goreecloud/locations-api",
     "build": "npm run build -w @goreecloud/locations-web",
     "check": "npm run test && npm run build",
+    "check:config": "node scripts/verify-config.mjs",
     "import:geojson": "node scripts/import-geojson.mjs",
     "import:traccar": "node scripts/import-traccar.mjs",
     "export:geojson": "node scripts/export-geojson.mjs"
