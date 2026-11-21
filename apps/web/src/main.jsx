@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as maplibregl from 'maplibre-gl';
 import { nearbyBody } from './nearby.mjs';
+import { privatePlaceBody } from './places.mjs';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../../vendor/gc-ui/tokens.css';
 import './style.css';
@@ -97,16 +98,17 @@ function AuthScreen({ onToken }) {
     </div>
   </main>;
 }
-function NearbyHistory({ token, latestPersonalFix }) {
+function NearbyHistory({ token, latestPersonalFix, savedPlaces = [] }) {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [radius, setRadius] = useState('1000');
+  const [selectedPlace, setSelectedPlace] = useState('');
   const [positions, setPositions] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   function clear() {
-    setLatitude(''); setLongitude(''); setRadius('1000'); setError(''); setPositions(null);
+    setLatitude(''); setLongitude(''); setRadius('1000'); setSelectedPlace(''); setError(''); setPositions(null);
   }
   async function submit(e) {
     e.preventDefault();
@@ -126,8 +128,21 @@ function NearbyHistory({ token, latestPersonalFix }) {
 
   return <section className="panel" aria-label="Search your personal location history">
     <h2>Find your own nearby check-ins</h2>
-    <p className="muted">Search only your stored history within a radius. Enter coordinates or choose a previously saved check-in. No live location permission, shared-circle access, public map tiles, or external place lookup is used.</p>
+    <p className="muted">Search only your stored history within a radius. Choose a private saved-place center, enter coordinates, or reuse a previous check-in; adjust the search radius independently. No live location permission, circle visibility, public map tiles, or external place lookup is used.</p>
     <form onSubmit={submit} className="vicinity-form">
+      {savedPlaces.length > 0 && <label className="vicinity-wide">Use a private saved place
+        <select value={selectedPlace} onChange={e=>{
+          const p = savedPlaces.find(place => place.id === e.target.value);
+          setSelectedPlace(e.target.value);
+          if (!p) return;
+          setLatitude(Number(p.latitude).toFixed(7));
+          setLongitude(Number(p.longitude).toFixed(7));
+          setPositions(null); setError('');
+        }} aria-label="Choose saved place search center">
+          <option value="">Choose a place, or enter coordinates below</option>
+          {savedPlaces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>}
       <label>Latitude
         <input aria-label="Search latitude" type="number" min="-90" max="90" step="any"
           required value={latitude} onChange={e => setLatitude(e.target.value)}
@@ -174,6 +189,84 @@ function NearbyHistory({ token, latestPersonalFix }) {
     </div>}
   </section>;
 }
+function PrivateSavedPlaces({ token, places, refresh, latestPersonalFix }) {
+  const [name,setName] = useState('');
+  const [latitude,setLatitude] = useState('');
+  const [longitude,setLongitude] = useState('');
+  const [radius,setRadius] = useState('250');
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState('');
+  const [notice,setNotice] = useState('');
+  async function create(e) {
+    e.preventDefault();
+    setError(''); setNotice(''); setBusy(true);
+    try {
+      const input = privatePlaceBody(name,latitude,longitude,radius);
+      await api('/v1/me/places',token,'POST',input);
+      await refresh();
+      setName(''); setLatitude(''); setLongitude('');
+      setNotice('Private place saved. It is not shared with your circle.');
+    } catch (err) { setError(err.message || 'Could not save place.'); }
+    finally { setBusy(false); }
+  }
+  async function remove(place) {
+    const typed = window.prompt('Delete this private place? Type its exact name to confirm:', '');
+    if (typed === null) return;
+    if (typed !== place.name) { setError('Place name did not match; nothing was deleted.'); return; }
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api('/v1/me/places/' + place.id,token,'DELETE',{confirmName:typed});
+      await refresh();
+      setNotice('Private place deleted. Your recorded positions were not changed.');
+    } catch (err) { setError(err.message || 'Could not delete private place.'); }
+    finally { setBusy(false); }
+  }
+  return <section className="panel" aria-label="Manage your private saved places">
+    <h2>Your private saved places</h2>
+    <p className="muted">Label up to 25 locations you choose. These labels and radii stay in your own account; circles never see them. Erasing recorded history does not erase these saved places; delete them separately here or delete your account. No automatic geofence monitoring, live tracking, alerts or geocoding is used.</p>
+    <form className="vicinity-form" onSubmit={create}>
+      <label className="vicinity-wide">Place name
+        <input type="text" maxLength="80" value={name} onChange={e => setName(e.target.value)}
+          placeholder="e.g. Favorite café" required aria-label="Private place name"/>
+      </label>
+      <label>Latitude
+        <input type="number" min="-90" max="90" step="any" required value={latitude}
+          onChange={e => setLatitude(e.target.value)} aria-label="Private place latitude"/>
+      </label>
+      <label>Longitude
+        <input type="number" min="-180" max="180" step="any" required value={longitude}
+          onChange={e => setLongitude(e.target.value)} aria-label="Private place longitude"/>
+      </label>
+      <label>Radius
+        <select value={radius} onChange={e => setRadius(e.target.value)} aria-label="Private place radius">
+          <option value="250">250 meters</option>
+          <option value="1000">1 kilometer</option>
+          <option value="5000">5 kilometers</option>
+        </select>
+      </label>
+      <div className="vicinity-actions">
+        <button className="button primary" disabled={busy || places.length>=25}>Save private place</button>
+        {latestPersonalFix && <button type="button" className="button secondary" disabled={busy}
+          onClick={() => {
+            setLatitude(Number(latestPersonalFix.latitude).toFixed(7));
+            setLongitude(Number(latestPersonalFix.longitude).toFixed(7));
+            setError('');
+          }}>Use latest saved check-in</button>}
+      </div>
+    </form>
+    {places.length>=25 && <p className="muted">You have reached the 25-place limit. Delete an unused place before creating another.</p>}
+    {error && <p className="error" role="alert">{error}</p>}
+    {notice && <p className="muted" role="status">{notice}</p>}
+    {places.length ? <div className="entry-list">{places.map(p =>
+      <div className="entry" key={p.id}>
+        <span className="person" aria-hidden="true">⌖</span>
+        <div><strong>{p.name}</strong><small>{p.radius_m} m radius, saved privately</small></div>
+        <span className="coords">{Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}</span>
+        <button type="button" className="button secondary" disabled={busy}
+          aria-label={'Delete saved place '+p.name} onClick={() => remove(p)}>Delete</button>
+      </div>)}</div> : <p className="empty">No private places saved yet.</p>}
+  </section>;
+}
 const nav = [['overview','◫','Overview'],['history','◷','History'],['circles','◎','Circles'],['privacy','◇','Privacy']];
 function Dashboard({ token, onLogout }) {
   const [tab,setTab] = useState('overview');
@@ -181,6 +274,7 @@ function Dashboard({ token, onLogout }) {
   const [circles,setCircles] = useState([]);
   const [latest,setLatest] = useState([]);
   const [history,setHistory] = useState([]);
+  const [places,setPlaces] = useState([]);
   const [trips,setTrips] = useState([]);
   const [tripsTruncated,setTripsTruncated] = useState(false);
   const [visits,setVisits] = useState([]);
@@ -201,13 +295,13 @@ function Dashboard({ token, onLogout }) {
     try { await operation(); } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
   async function refresh() {
-    const [account, group, current, old, journeys, stays, activeSessions] = await Promise.all([
+    const [account, group, current, old, journeys, stays, activeSessions, savedPlaces] = await Promise.all([
       api('/v1/me',token),api('/v1/circles',token),api('/v1/locations/latest',token),api('/v1/locations?limit=500',token),
-      api('/v1/trips',token),api('/v1/visits',token),api('/v1/me/sessions',token)
+      api('/v1/trips',token),api('/v1/visits',token),api('/v1/me/sessions',token),api('/v1/me/places',token)
     ]);
     setMe(account.account); setCircles(group.circles); setLatest(current.positions); setHistory(old.positions);
     setTrips(journeys.trips); setTripsTruncated(journeys.truncated);
-    setVisits(stays.visits); setVisitsTruncated(stays.truncated); setSessions(activeSessions.sessions);
+    setVisits(stays.visits); setVisitsTruncated(stays.truncated); setSessions(activeSessions.sessions); setPlaces(savedPlaces.places);
   }
   useEffect(() => { refresh().catch(err => setError(err.message)); }, [token]);
   async function checkIn() {
@@ -269,7 +363,8 @@ function Dashboard({ token, onLogout }) {
         <div className="panel"><h2>Last known positions</h2>{!latest.length?<p className="empty">No location is visible yet. Enable recording in Privacy and check in when you choose.</p>:<div className="entry-list">{latest.map(p=><div key={p.user_id} className="entry"><span className="person">{p.user_id===me.id?'Y':p.email[0].toUpperCase()}</span><div><strong>{p.user_id===me.id?'You':p.email}</strong><small>{fmt(p.captured_at)}</small></div><span className="coords">{Number(p.latitude).toFixed(4)}, {Number(p.longitude).toFixed(4)}</span></div>)}</div>}</div>
       </>}
       {tab==='history' && <><div className="page-head"><div><span className="eyebrow">PRIVATE JOURNAL</span><h1>Your timeline</h1><p>Your history stays available to you, even when circle sharing is disabled.</p></div><button className="button secondary" onClick={()=>execute(downloadExport)} disabled={busy}>Export GeoJSON</button></div><div className="panel"><h2>Recent positions</h2><p className="muted">Showing up to 500 of your latest positions from the past 30 days.</p>{history.length?<div className="entry-list">{history.map(p=><div className="entry" key={p.id}><span className="person">⌁</span><div><strong>{fmt(p.captured_at)}</strong><small>{p.source} {p.accuracy_m!=null?'· ±'+Math.round(p.accuracy_m)+' m':''}</small></div><span className="coords">{Number(p.latitude).toFixed(5)}, {Number(p.longitude).toFixed(5)}</span></div>)}</div>:<p className="empty">No history recorded in the past 30 days.</p>}</div></>}
-      {tab==='history' && <NearbyHistory token={token} latestPersonalFix={history[0]}/>}
+      {tab==='history' && <PrivateSavedPlaces token={token} places={places} refresh={refresh} latestPersonalFix={history[0]}/>}
+      {tab==='history' && <NearbyHistory token={token} latestPersonalFix={history[0]} savedPlaces={places}/>}
       {tab==='history' && <section className="panel" aria-label="Estimated trips">
         <h2>Estimated trips</h2>
         <p className="muted">Trips are calculated locally on your server from your saved points. Distances are estimates, not map-matched routes or arrival confirmations.</p>
