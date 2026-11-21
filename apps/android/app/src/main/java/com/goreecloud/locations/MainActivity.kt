@@ -338,6 +338,9 @@ private fun Workspace(activity: ComponentActivity, session: Session, onLogout: (
                         if (ForegroundTracking.lastProblem.isNotBlank()) {
                             Text(ForegroundTracking.lastProblem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                         }
+                        if (ForegroundTracking.droppedFixes > 0) {
+                            Text("${ForegroundTracking.droppedFixes} location fix(es) dropped from the RAM-only queue. No offline recovery is available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
                         if (!account.bool("recording_enabled")) Text("Enable recording in Privacy first.", style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(16.dp))
