@@ -3,7 +3,7 @@
 ## Current implementation (development preview)
 
 - `apps/web`: React 19, Vite, MapLibre GL JS map (no outside tiles by default), desktop/mobile responsive UI. Vendor-pinned GoreeCloud UI CSS token source.
-- `apps/api`: Node.js 22 HTTP REST service, scrypt account passwords, 256-bit random opaque bearer sessions, SHA-256-at-rest bearer and invitation tokens, bounded request bodies, constant-time bootstrap comparison and basic memory-bound sign-in throttling. Auth and privacy are enforced on the server, not in clients.
+- `apps/api`: Node.js 22 HTTP REST service, scrypt account passwords, 256-bit random opaque bearer sessions, SHA-256-at-rest bearer and invitation tokens, own-session listing and password-confirmed revocation of other sessions, bounded request bodies, constant-time bootstrap comparison and basic memory-bound sign-in throttling. Auth and privacy are enforced on the server, not in clients.
 - `migrations`: PostgreSQL 17 + PostGIS models for account-scoped tracks, circles, per-member opt-in sharing and expiring one-use invitations. Spatial GiST index is reserved for later geofences and proximity search.
 - `apps/android`: native Kotlin/Jetpack Compose, manual check-in and explicitly started notification-visible foreground location service, HTTPS API, RAM-only session. No background-location permission, boot restart or offline queue; the service checks server consent before attempting updates and is not device-qualified.
 - `scripts`: portable imported position adapters for GeoJSON/Dawarich exports and Traccar JSON reports; no proprietary Life360 source.

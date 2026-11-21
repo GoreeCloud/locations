@@ -8,7 +8,7 @@
 
 - **Web** — React/Vite dashboard, MapLibre map, opted-in OpenStreetMap map tiles, personal history, check-in, GeoJSON export, history erase, circles and invites, privacy controls.
 - **Android** — Kotlin + Jetpack Compose native client, current positions and history list, on-demand check-in and an individually started foreground tracking service with persistent Stop notification; no boot auto-start, no background-location permission, no offline queue. Real-device behavior is not yet accepted.
-- **API** — Node 22 HTTP REST, locally authenticated owner + invitation-only accounts, scrypt password storage, short-lived invitation tokens and 30-day opaque sessions.
+- **API** — Node 22 HTTP REST, locally authenticated owner + invitation-only accounts, scrypt password storage, short-lived invitation tokens and 30-day opaque sessions. The web Privacy tab can list active session timestamps and password-confirm revocation of all other sessions.
 - **Database** — PostgreSQL 17/PostGIS, private account tracks, circle membership, explicit opt-in sharing, bounded retention and spatial index.
 - **Trips** — offline deterministic estimates of journeys from your stored position samples, visible in the web History tab; no map matching, geocoding, arrival inference, or automatic tracking.
 - **Interop** — GeoJSON (Dawarich-style) importer, Traccar REST route report importer, GeoJSON export. No upstream Traccar/Dawarich code copied.

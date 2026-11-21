@@ -149,6 +149,25 @@ export function makeHandler(db, options) {
     if (req.method === 'GET' && path === '/v1/me') {
       return json(res, 200, { account: me });
     }
+    if (req.method === 'GET' && path === '/v1/me/sessions') {
+      const current = digest(req.headers.authorization.slice(7));
+      const r = await db.query(
+        'SELECT id, created_at, expires_at, (token_hash=$2) AS current FROM sessions WHERE account_id=$1 AND expires_at>now() ORDER BY created_at DESC,id DESC LIMIT 100',
+        [me.id,current]
+      );
+      return json(res, 200, { sessions:r.rows });
+    }
+    if (req.method === 'POST' && path === '/v1/me/sessions/revoke-others') {
+      const input = await body(req);
+      const current = digest(req.headers.authorization.slice(7));
+      const r = await db.query('SELECT password_hash FROM accounts WHERE id=$1', [me.id]);
+      if (!r.rowCount || !(await verifyPassword(input.password,r.rows[0].password_hash))) {
+        throw new HttpError(401, 'Current password is incorrect');
+      }
+      const deleted = await db.query('DELETE FROM sessions WHERE account_id=$1 AND token_hash<>$2',
+        [me.id,current]);
+      return json(res, 200, { revoked:deleted.rowCount });
+    }
     if (req.method === 'PATCH' && path === '/v1/privacy') {
       const input = await body(req);
       if (!isBool(input.recordingEnabled) && input.retentionDays === undefined) throw new HttpError(400, 'No privacy changes');
