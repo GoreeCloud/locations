@@ -8,7 +8,7 @@ Status as of initial development source, not promised delivery dates.
 | P0 | Consent-scoped family circles and invite join | Cross-account negative authorization tests, consent revocation tests |
 | P0 | Web map and native Android check-in | Android assembleDebug plus physical foreground permission tests; browser map and keyboard/a11y review |
 | P0 | Reproducible CI & source code licensing | Valid clean builds, wrapper verification, license and upstream attribution readback |
-| P1 | Stable secure remote hosting | Synthetic Docker smoke for startup/proxy/private access is a development CI gate; still requires verified HTTPS, encrypted backups with restore, host-network acceptance and deployment hardening |
+| P1 | Stable secure remote hosting | Synthetic Docker HTTP smoke and database backup/restore rehearsal are development CI gates; still requires verified HTTPS, encrypted independent backup with restore, host-network acceptance and deployment hardening |
 | P1 | Continuous tracking (opt-in) | Native foreground service with persistent Stop notification has an initial implementation; still requires physical-device battery/permission validation, encrypted offline queue, and anti-abuse acceptance |
 | P1 | Visits and trips (Dawarich-style) | Initial personal read-only heuristic trip summaries exist; remaining acceptance: privacy-preserving visit/stay grouping, map matching, PostGIS trip analysis and real-world validation |
 | P1 | Geofences and arrival/departure | Explicit per-person consent, per-circle granular controls, no covert notifications |

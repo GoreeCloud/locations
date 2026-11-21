@@ -54,6 +54,10 @@ jobs:
         env:
           CONTAINER_ENGINE: docker
         run: bash scripts/smoke-containers.sh
+      - name: Validate disposable PostGIS backup and restore
+        env:
+          CONTAINER_ENGINE: docker
+        run: bash scripts/smoke-postgis-restore.sh
   android:
     runs-on: ubuntu-latest
     steps:
