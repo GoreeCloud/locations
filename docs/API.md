@@ -12,6 +12,9 @@ Base path via the web proxy: `/api/v1`. Direct API server local development uses
 | GET | `/v1/me/sessions` | List up to 100 own active session IDs, created/expiry timestamps and current flag; no bearer tokens returned |
 | POST | `/v1/me/sessions/revoke-others` | Password-confirmed revocation of other sessions for the account; current session remains; returns revoked count |
 | GET | `/v1/me` | Current account privacy preferences |
+| GET | `/v1/me/places` | List up to 25 private named places owned exclusively by the authenticated account; **never exposed to circles** |
+| POST | `/v1/me/places` | Create private place from JSON body `{name, latitude, longitude, radiusMeters?}` (default 125 m; 50–5,000 m, at most 25 places per account). No coordinate URLs, geocoding, tracking or notifications |
+| DELETE | `/v1/me/places/:id` | Delete own named place only, requiring JSON `{confirmName: "exact place name"}`; other accounts receive 404 |
 | PATCH | `/v1/privacy` | `recordingEnabled: boolean`, `retentionDays: integer 1..365` |
 | POST | `/v1/locations` | Single `latitude`, `longitude`, optional `accuracyM`, `capturedAt`, `source` |
 | POST | `/v1/locations/batch` | `{positions: [...]}` up to 500 points, accepted only when recording enabled; optional `clientKey` per point provides account-scoped idempotency. Response returns `accepted` inserted and `duplicates` skipped |

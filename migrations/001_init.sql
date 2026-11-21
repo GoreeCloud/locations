@@ -52,3 +52,15 @@ ALTER TABLE positions ADD COLUMN IF NOT EXISTS client_key_hash text;
 CREATE UNIQUE INDEX IF NOT EXISTS positions_account_client_key_idx ON positions(account_id, client_key_hash) WHERE client_key_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS positions_account_time_idx ON positions(account_id, captured_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS positions_geography_idx ON positions USING GIST ((ST_SetSRID(ST_MakePoint(longitude, latitude),4326)::geography));
+
+-- Private named locations: account-only place labels, never member-shared geofences.
+CREATE TABLE IF NOT EXISTS saved_places (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  latitude double precision NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+  longitude double precision NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+  radius_m integer NOT NULL CHECK (radius_m BETWEEN 50 AND 5000),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS saved_places_account_idx ON saved_places(account_id, created_at DESC);
