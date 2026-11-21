@@ -10,7 +10,7 @@
 - **Android** — Kotlin + Jetpack Compose native client, current positions and history list, on-demand check-in and an individually started foreground tracking service with persistent Stop notification; no boot auto-start, no background-location permission, no offline queue. Real-device behavior is not yet accepted.
 - **API** — Node 22 HTTP REST, locally authenticated owner + invitation-only accounts, scrypt password storage, short-lived invitation tokens and 30-day opaque sessions. The web Privacy tab can list active session timestamps and password-confirm revocation of all other sessions.
 - **Database** — PostgreSQL 17/PostGIS, private account tracks, circle membership, explicit opt-in sharing, bounded retention and spatial index.
-- **Trips** — offline deterministic estimates of journeys from your stored position samples, visible in the web History tab; no map matching, geocoding, arrival inference, or automatic tracking.
+- **Trips and visits** — offline deterministic estimates of journeys and likely stays from your own stored samples, visible in the web History tab; no map matching, geocoding, attendance proof, arrival alerts, or automatic sharing.
 - **Interop** — GeoJSON (Dawarich-style) importer, Traccar REST route report importer, GeoJSON export. No upstream Traccar/Dawarich code copied.
 - **DevOps** — all configs, Dockerfiles, Compose, migrations, test and CI workflows stored here. Successful GitHub Actions runs publish a 7-day web build preview and an **unsigned-for-release, debug-signed Android test APK** under workflow artifacts, not as production releases.
 

@@ -185,6 +185,21 @@ test('PostGIS: private accounts, circle consent, retention and export/deletion',
     await call('GET','/v1/export/geojson/page?limit=0',bobToken,null,400);
     await call('GET','/v1/export/geojson/page?beforeId=-1',bobToken,null,400);
     await call('GET','/v1/export/geojson/page?beforeId=9223372036854775808',bobToken,null,400);
+    // Visit estimates are derived only from personal history. Circle access never grants this endpoint.
+    const visitStart = Date.now() - 40*60000;
+    const visitPoints = [0,300,600,900].map((seconds,i) => ({
+      latitude:32.2 + (i%2)*0.00001, longitude:-86.2,
+      accuracyM:8, capturedAt:new Date(visitStart + seconds*1000).toISOString(),
+      source:'synthetic_visit'
+    }));
+    assert.equal((await call('POST','/v1/locations/batch',bobToken,{positions:visitPoints},201)).payload.accepted,4);
+    const ownVisits = (await call('GET','/v1/visits',bobToken,null,200)).payload;
+    assert.equal(ownVisits.methodology,'heuristic-private-visits-v1');
+    assert.ok(ownVisits.visits.some(v => v.pointCount >= 4 && Math.abs(v.latitude-32.2)<0.0001));
+    assert.equal((await call('GET','/v1/visits',charlieToken,null,200)).payload.visits.length,0);
+    await call('GET','/v1/visits?userId='+bobId,charlieToken,null,400);
+    await call('GET','/v1/visits?points=0',bobToken,null,400);
+    await call('GET','/v1/visits?from=not-a-date',bobToken,null,400);
     // A logged-out bearer token is unusable, including for history.
     await call('POST','/v1/auth/logout',aliceToken,null,200);
     await call('GET','/v1/me',aliceToken,null,401);

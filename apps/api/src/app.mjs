@@ -1,5 +1,6 @@
 import { HttpError, digest, newToken, secureEquals, emailAddress, passwordInput, hashPassword, verifyPassword, uuid, pointInput, positiveLimit } from './security.mjs';
 import { inferTrips } from './trips.mjs';
+import { inferVisits } from './visits.mjs';
 
 const isBool = v => typeof v === 'boolean';
 const ACCESS_MS = 30 * 86400000;
@@ -230,6 +231,26 @@ export function makeHandler(db, options) {
       return json(res, 200, {
         trips: inferTrips(subset), sampledPoints: subset.length, truncated,
         methodology: 'heuristic-offline-v1'
+      });
+    }
+    if (req.method === 'GET' && path === '/v1/visits') {
+      if (url.searchParams.has('userId')) throw new HttpError(400, 'Visit estimates are personal only');
+      const from = timestamp(url.searchParams.get('from'), new Date(Date.now()-30*daysMs).toISOString());
+      const until = timestamp(url.searchParams.get('until'), new Date().toISOString());
+      if (new Date(from) > new Date(until)) throw new HttpError(400, 'Invalid date range');
+      const maxPoints = positiveLimit(url.searchParams.get('points'), 3000, 10000);
+      const history = await db.query(
+        'SELECT latitude,longitude,accuracy_m,captured_at FROM positions WHERE account_id=$1 AND captured_at BETWEEN $2 AND $3 ORDER BY captured_at DESC,id DESC LIMIT $4',
+        [me.id,from,until,maxPoints+1]
+      );
+      const isLimited = history.rows.length > maxPoints;
+      const subset = history.rows.slice(0,maxPoints);
+      const estimates = inferVisits(subset);
+      return json(res, 200, {
+        visits: estimates.slice(0,300),
+        sampledPoints:subset.length,
+        truncated:isLimited || estimates.length>300,
+        methodology:'heuristic-private-visits-v1'
       });
     }
     if (req.method === 'GET' && path === '/v1/locations/latest') {
