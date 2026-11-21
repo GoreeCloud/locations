@@ -1,20 +1,11 @@
 import { HttpError, digest, newToken, secureEquals, emailAddress, passwordInput, hashPassword, verifyPassword, uuid, pointInput, positiveLimit, coordinateInput, radiusInput } from './security.mjs';
+import { createAuthLimiter } from './auth-limit.mjs';
 import { inferTrips } from './trips.mjs';
 import { inferVisits } from './visits.mjs';
 
 const isBool = v => typeof v === 'boolean';
 const ACCESS_MS = 30 * 86400000;
 const daysMs = 86400000;
-const authAttempts = new Map();
-function throttle(key, max = 12) {
-  const now = Date.now();
-  if (authAttempts.size > 10000) authAttempts.clear();
-  const item = authAttempts.get(key);
-  const value = !item || item.expires <= now ? { count: 0, expires: now + 15 * 60000 } : item;
-  value.count++;
-  authAttempts.set(key, value);
-  if (value.count > max) throw new HttpError(429, 'Too many attempts; try again later');
-}
 function json(res, status, data) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
@@ -50,6 +41,7 @@ export function makeHandler(db, options) {
     throw new Error('BOOTSTRAP_TOKEN must contain at least 32 characters');
   }
   const allowedOrigin = options.webOrigin || '';
+  const limiter = createAuthLimiter();
   async function authenticated(req) {
     const match = /^Bearer ([A-Za-z0-9_-]{32,128})$/.exec(req.headers.authorization || '');
     if (!match) throw new HttpError(401, 'Authentication required');
@@ -98,8 +90,8 @@ export function makeHandler(db, options) {
       return json(res, 200, { status: 'ok' });
     }
     if (req.method === 'POST' && path === '/v1/auth/bootstrap') {
+      limiter.checkIp(req.socket.remoteAddress, 'bootstrap');
       const input = await body(req);
-      throttle('bootstrap:' + (req.socket.remoteAddress || 'unknown'), 8);
       if (!secureEquals(input.bootstrapToken, options.bootstrapToken)) throw new HttpError(401, 'Invalid bootstrap credentials');
       const email = emailAddress(input.email);
       const password = await hashPassword(passwordInput(input.password));
@@ -114,9 +106,10 @@ export function makeHandler(db, options) {
       return json(res, 201, { account, ...session });
     }
     if (req.method === 'POST' && path === '/v1/auth/login') {
+      limiter.checkIp(req.socket.remoteAddress, 'login');
       const input = await body(req);
       const email = emailAddress(input.email);
-      throttle('login:' + (req.socket.remoteAddress || 'unknown') + ':' + email);
+      limiter.checkIdentity(email, 'login');
       const r = await db.query('SELECT id,password_hash FROM accounts WHERE email=$1', [email]);
       const match = r.rowCount && await verifyPassword(input.password, r.rows[0].password_hash);
       if (!match) throw new HttpError(401, 'Invalid credentials');
@@ -124,8 +117,8 @@ export function makeHandler(db, options) {
       return json(res, 200, session);
     }
     if (req.method === 'POST' && path === '/v1/auth/join') {
+      limiter.checkIp(req.socket.remoteAddress, 'join');
       const input = await body(req);
-      throttle('join:' + (req.socket.remoteAddress || 'unknown'), 20);
       const inviteToken = String(input.inviteToken || '');
       if (!/^[A-Za-z0-9_-]{32,128}$/.test(inviteToken)) throw new HttpError(400, 'Invalid invitation');
       const email = emailAddress(input.email);
@@ -159,6 +152,8 @@ export function makeHandler(db, options) {
       return json(res, 200, { sessions:r.rows });
     }
     if (req.method === 'POST' && path === '/v1/me/sessions/revoke-others') {
+      limiter.checkIp(req.socket.remoteAddress, 'password');
+      limiter.checkIdentity(me.id, 'password');
       const input = await body(req);
       const current = digest(req.headers.authorization.slice(7));
       const r = await db.query('SELECT password_hash FROM accounts WHERE id=$1', [me.id]);
@@ -329,6 +324,8 @@ export function makeHandler(db, options) {
       return json(res, 200, { deleted: r.rowCount });
     }
     if (req.method === 'DELETE' && path === '/v1/me') {
+      limiter.checkIp(req.socket.remoteAddress, 'password');
+      limiter.checkIdentity(me.id, 'password');
       const input = await body(req);
       if (input.confirmation !== 'DELETE ACCOUNT') throw new HttpError(400, 'Explicit account-deletion confirmation required');
       await db.transaction(async q => {

@@ -44,3 +44,31 @@ test('request body parser rejects malformed input', () => withServer(async origi
   const res = await fetch(origin + '/v1/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{bad' });
   assert.equal(res.status, 400);
 }));
+
+test('login throttles one network peer despite rotating identities or spoofed forwarding headers', () => withServer(async origin => {
+  const status = [];
+  for (let i = 0; i < 41; i++) {
+    const res = await fetch(origin + '/v1/auth/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Forwarded-For':'192.0.2.' + (i%250+1)},
+      body:JSON.stringify({email:'rotating-' + i + '@example.invalid',password:'wrong-password'})
+    });
+    status.push(res.status);
+  }
+  assert.equal(status.filter(s=>s===401).length,40);
+  assert.equal(status[40],429);
+}));
+
+test('bootstrap budget limits repeated invalid setup credentials before database work', () => withServer(async origin => {
+  for (let i = 0; i < 8; i++) {
+    const res = await fetch(origin + '/v1/auth/bootstrap',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bootstrapToken:'incorrect',email:'owner@example.invalid',password:'fake-password-value'})
+    });
+    assert.equal(res.status,401);
+  }
+  const rejected = await fetch(origin + '/v1/auth/bootstrap',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:'{bad'
+  });
+  assert.equal(rejected.status,429);
+}));
