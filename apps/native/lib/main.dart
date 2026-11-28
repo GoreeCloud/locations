@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'privacy.dart';
 import 'history.dart';
+import 'server_history.dart';
 
 void main() => runApp(const LocationsApp());
 
@@ -38,21 +39,68 @@ class _WorkspaceState extends State<Workspace> {
       lon = TextEditingController(),
       lat = TextEditingController(),
       radius = TextEditingController(text: '1');
+  final origin = TextEditingController(),
+      start = TextEditingController(),
+      end = TextEditingController(),
+      accessKey = TextEditingController();
+  HistoryTransfer? transfer;
+  bool retrieving = false;
   Map<String, dynamic>? result;
   String? error;
   bool useZone = false;
   bool protectCells = true;
   bool auditRoute = false;
   void invalidate() => setState(() {
+        transfer?.cancel();
+        transfer = null;
+        retrieving = false;
         result = null;
         error = null;
       });
   @override
   void dispose() {
-    for (final c in [input, grid, minimum, lon, lat, radius]) {
+    transfer?.cancel();
+    for (final c in [
+      input,
+      grid,
+      minimum,
+      lon,
+      lat,
+      radius,
+      origin,
+      start,
+      end,
+      accessKey
+    ]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> retrieve() async {
+    invalidate();
+    final current = HistoryTransfer();
+    final key = accessKey.text;
+    accessKey.clear();
+    transfer = current;
+    setState(() => retrieving = true);
+    try {
+      final text =
+          await current.retrieve(origin.text, start.text, end.text, key);
+      if (mounted && identical(transfer, current)) {
+        input.text = text;
+        invalidate();
+      }
+    } catch (_) {
+      if (mounted && identical(transfer, current)) {
+        setState(() {
+          retrieving = false;
+          transfer = null;
+          error =
+              'Server history unavailable. Check HTTPS server, access key and time interval.';
+        });
+      }
+    }
   }
 
   void run() {
@@ -101,10 +149,53 @@ class _WorkspaceState extends State<Workspace> {
                       Text('Privacy workspace',
                           style: Theme.of(context).textTheme.headlineMedium),
                       const Text(
-                          'Development preview · Local processing only. No location permission or network account required.'),
+                          'Development preview · Local processing. Optional read-only HTTPS server retrieval; no location permission or mandatory account.'),
                       const SizedBox(height: 24),
                       Text('1. Location history',
                           style: Theme.of(context).textTheme.titleLarge),
+                      ExpansionTile(
+                        title:
+                            const Text('Retrieve from your GoreeCloud server'),
+                        children: [
+                          const Text(
+                              'Optional read-only transfer to the HTTPS server you enter. Access key is not saved. Use up to 31 days in Unix seconds.'),
+                          TextField(
+                              controller: origin,
+                              decoration: const InputDecoration(
+                                  labelText: 'HTTPS server origin'),
+                              autocorrect: false,
+                              onChanged: (_) => invalidate()),
+                          OutlinedButton(
+                              onPressed: () {
+                                final now =
+                                    DateTime.now().millisecondsSinceEpoch ~/
+                                        1000;
+                                start.text = (now - 7 * 86400).toString();
+                                end.text = now.toString();
+                                invalidate();
+                              },
+                              child: const Text('Last 7 days')),
+                          number('Start (Unix seconds)', start),
+                          number('End (exclusive, Unix seconds)', end),
+                          TextField(
+                              controller: accessKey,
+                              obscureText: true,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              decoration: const InputDecoration(
+                                  labelText: 'Server access key'),
+                              onChanged: (_) => invalidate()),
+                          FilledButton(
+                              onPressed: retrieving ? null : retrieve,
+                              child: Text(retrieving
+                                  ? 'Retrieving…'
+                                  : 'Retrieve private history')),
+                          if (retrieving)
+                            OutlinedButton(
+                                onPressed: invalidate,
+                                child: const Text('Cancel retrieval')),
+                        ],
+                      ),
                       OutlinedButton(
                           onPressed: () {
                             input.text = sample();
@@ -124,6 +215,10 @@ class _WorkspaceState extends State<Workspace> {
                       OutlinedButton(
                           onPressed: () {
                             input.clear();
+                            origin.clear();
+                            start.clear();
+                            end.clear();
+                            accessKey.clear();
                             lon.clear();
                             lat.clear();
                             useZone = false;
