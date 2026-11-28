@@ -38,3 +38,12 @@ test('CSV rejects ambiguous headers, invalid coordinates, units, extra columns a
  for(const raw of ['lat,lon\n20,10','longitude,latitude\n181,0','longitude,latitude,timestamp\n10,20,1700000000000','longitude,latitude\n1,2,3','longitude,latitude\n"1",2','longitude,latitude\n,2','longitude,latitude\n1,2\n\n3,4'])assert.throws(()=>normalizeHistory(raw))
  assert.equal(normalizeHistory('longitude,latitude\n1,2').includes('timestamp'),false)
 })
+test('Dawarich API point array imports only coordinates and timestamps',()=>{
+ const raw=JSON.stringify([{id:123,longitude:'10.5',latitude:'-20.5',timestamp:150,tracker_id:'private',raw_data:{secret:'ignored'}}])
+ const out=JSON.parse(normalizeHistory(raw))
+ assert.deepEqual(out,{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Point',coordinates:[10.5,-20.5]},properties:{timestamp:150}}]})
+ assert.equal(preview(normalizeHistory(raw),{auditRoute:true}).routeAudit.timedPoints,1)
+})
+test('Dawarich array rejects malformed or ambiguous point data',()=>{
+ for(const row of [{longitude:'',latitude:'0',timestamp:100},{longitude:'0',latitude:'NaN',timestamp:100},{longitude:0,latitude:0,timestamp:'100'},{longitude:0,latitude:0,timestamp:1700000000000},{longitude:181,latitude:0,timestamp:100},null]) assert.throws(()=>normalizeHistory(JSON.stringify([row])))
+})

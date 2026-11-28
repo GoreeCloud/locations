@@ -41,3 +41,7 @@ GoreeCloud UI semantic colors and spacing were selected from the alpha candidate
 ### Portable history import
 
 The web and native clients accept Point GeoJSON or strict numeric CSV with header `longitude,latitude` or `longitude,latitude,timestamp` (optional blank timestamp, otherwise Unix seconds). The parser rejects quoted fields, extra columns, ambiguous units and invalid coordinates; input and converted output are limited to 8 MiB, 100,000 points. Web file selection and native paste work locally, with the same grid and route audit. No source history is uploaded or automatically saved.
+
+### Dawarich interoperability
+
+Clients also accept the upstream points API JSON array (latitude and longitude as decimal strings or numbers, timestamp as integer Unix seconds). Only these three fields are imported; IDs, tracker metadata and other attributes are discarded. This is an explicit offline file/paste workflow, not direct network synchronization. A staged server export endpoint is under qualification and is not included in this public repository.

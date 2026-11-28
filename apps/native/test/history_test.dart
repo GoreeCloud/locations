@@ -32,4 +32,47 @@ void main() {
     expect(normalizeHistory('longitude,latitude\n1,2'),
         isNot(contains('timestamp')));
   });
+
+  test('Dawarich API point array imports only coordinates and timestamps', () {
+    final raw = jsonEncode([
+      {
+        'id': 123,
+        'longitude': '10.5',
+        'latitude': '-20.5',
+        'timestamp': 150,
+        'tracker_id': 'private',
+        'raw_data': {'secret': 'ignored'}
+      }
+    ]);
+    final out = jsonDecode(normalizeHistory(raw));
+    expect(out, {
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'geometry': {
+            'type': 'Point',
+            'coordinates': [10.5, -20.5]
+          },
+          'properties': {'timestamp': 150}
+        }
+      ]
+    });
+    expect(
+        preview(normalizeHistory(raw), auditRoute: true)['routeAudit']
+            ['timedPoints'],
+        1);
+  });
+  test('Dawarich array rejects malformed or ambiguous point data', () {
+    for (final row in [
+      {'longitude': '', 'latitude': '0', 'timestamp': 100},
+      {'longitude': '0', 'latitude': 'NaN', 'timestamp': 100},
+      {'longitude': 0, 'latitude': 0, 'timestamp': '100'},
+      {'longitude': 0, 'latitude': 0, 'timestamp': 1700000000000},
+      {'longitude': 181, 'latitude': 0, 'timestamp': 100},
+      null
+    ]) {
+      expect(() => normalizeHistory(jsonEncode([row])), throwsFormatException);
+    }
+  });
 }
