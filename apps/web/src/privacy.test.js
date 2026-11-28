@@ -26,3 +26,15 @@ test('route audit counts time gaps, non-increasing time and advisory speeds; nev
  assert.ok(!JSON.stringify(r.export).includes('timestamp'));assert.ok(!JSON.stringify(r.export).includes('routeAudit'))
  assert.equal(preview(text).routeAudit,undefined)
 })
+import {normalizeHistory} from './history.js'
+test('portable CSV preserves explicit coordinates, optional seconds and audit behavior',()=>{
+ const raw='longitude,latitude,timestamp\r\n10,20,100\r\n11,20,101\r\n12,20,'
+ const out=JSON.parse(normalizeHistory(raw))
+ assert.equal(out.features.length,3);assert.deepEqual(out.features[0].geometry.coordinates,[10,20])
+ assert.equal(out.features[0].properties.timestamp,100);assert.deepEqual(out.features[2].properties,{})
+ assert.equal(preview(normalizeHistory(raw),{auditRoute:true}).routeAudit.highSpeedSegments,1)
+})
+test('CSV rejects ambiguous headers, invalid coordinates, units, extra columns and quoted data',()=>{
+ for(const raw of ['lat,lon\n20,10','longitude,latitude\n181,0','longitude,latitude,timestamp\n10,20,1700000000000','longitude,latitude\n1,2,3','longitude,latitude\n"1",2','longitude,latitude\n,2','longitude,latitude\n1,2\n\n3,4'])assert.throws(()=>normalizeHistory(raw))
+ assert.equal(normalizeHistory('longitude,latitude\n1,2').includes('timestamp'),false)
+})
