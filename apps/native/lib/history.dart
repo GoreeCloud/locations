@@ -10,6 +10,53 @@ String normalizeHistory(String text) {
   }
   final trimmed = text.replaceFirst(RegExp(r'^\uFEFF'), '').trim();
   if (trimmed.startsWith('{')) return trimmed;
+  if (trimmed.startsWith('[')) {
+    final rows = jsonDecode(trimmed);
+    if (rows is! List || rows.length > _maxPoints) {
+      throw const FormatException('Invalid point array');
+    }
+    double coordinate(dynamic value) {
+      if (value is String && _decimal.hasMatch(value)) {
+        value = double.tryParse(value);
+      }
+      if (value is! num || !value.isFinite) {
+        throw const FormatException('Invalid coordinate');
+      }
+      return value.toDouble();
+    }
+
+    final features = <Map<String, dynamic>>[];
+    for (final row in rows) {
+      if (row is! Map) {
+        throw const FormatException('Invalid point record');
+      }
+      final lon = coordinate(row['longitude']),
+          lat = coordinate(row['latitude']);
+      final t = row['timestamp'];
+      if (lon.abs() > 180 ||
+          lat.abs() > 90 ||
+          t is! num ||
+          !t.isFinite ||
+          t < 0 ||
+          t > 4102444800 ||
+          t != t.truncate()) {
+        throw const FormatException('Invalid point record');
+      }
+      features.add({
+        'type': 'Feature',
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [lon, lat]
+        },
+        'properties': {'timestamp': t.toInt()}
+      });
+    }
+    final out = jsonEncode({'type': 'FeatureCollection', 'features': features});
+    if (utf8.encode(out).length > _maxBytes) {
+      throw const FormatException('Converted input too large');
+    }
+    return out;
+  }
   final lines = trimmed.split(RegExp(r'\r?\n'));
   final header = lines.removeAt(0).split(',').map((x) => x.trim()).join(',');
   final timed = header == 'longitude,latitude,timestamp';

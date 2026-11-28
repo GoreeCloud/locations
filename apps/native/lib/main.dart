@@ -73,7 +73,7 @@ class _WorkspaceState extends State<Workspace> {
       setState(() => result = r);
     } catch (_) {
       setState(() => error =
-          'Could not process input. Check GeoJSON or CSV, limits and privacy settings.');
+          'Could not process input. Check history format, limits and privacy settings.');
     }
   }
 
@@ -118,7 +118,7 @@ class _WorkspaceState extends State<Workspace> {
                           maxLines: 5,
                           decoration: const InputDecoration(
                               labelText:
-                                  'Paste Point GeoJSON or CSV (8 MiB maximum)',
+                                  'Paste GeoJSON, CSV or Dawarich point JSON (8 MiB maximum)',
                               border: OutlineInputBorder()),
                           onChanged: (_) => invalidate()),
                       OutlinedButton(

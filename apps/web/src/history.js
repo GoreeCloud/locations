@@ -5,6 +5,24 @@ export function normalizeHistory(text) {
  if(typeof text!=='string'||new TextEncoder().encode(text).length>MAX_BYTES)throw Error('Input too large')
  const trimmed=text.replace(/^\uFEFF/,'').trim()
  if(trimmed.startsWith('{'))return trimmed
+ if(trimmed.startsWith('[')){
+  const rows=JSON.parse(trimmed)
+  if(!Array.isArray(rows)||rows.length>MAX_POINTS)throw Error('Invalid point array')
+  const features=rows.map(row=>{
+   if(!row||typeof row!=='object'||Array.isArray(row))throw Error('Invalid point record')
+   const coordinate=(n)=>{
+    if(typeof n==='string'&&decimal.test(n))n=Number(n)
+    if(typeof n!=='number'||!Number.isFinite(n))throw Error('Invalid coordinate')
+    return n
+   }
+   const lon=coordinate(row.longitude),lat=coordinate(row.latitude),t=row.timestamp
+   if(Math.abs(lon)>180||Math.abs(lat)>90||!Number.isInteger(t)||t<0||t>4102444800)throw Error('Invalid point record')
+   return {type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:{timestamp:t}}
+  })
+  const out=JSON.stringify({type:'FeatureCollection',features})
+  if(new TextEncoder().encode(out).length>MAX_BYTES)throw Error('Converted input too large')
+  return out
+ }
  const lines=trimmed.split(/\r?\n/)
  const header=lines.shift()?.split(',').map(x=>x.trim())
  const timed=header?.join(',')==='longitude,latitude,timestamp'
