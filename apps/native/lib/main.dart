@@ -40,6 +40,8 @@ class _WorkspaceState extends State<Workspace> {
   Map<String, dynamic>? result;
   String? error;
   bool useZone = false;
+  bool protectCells = true;
+  bool auditRoute = false;
   void invalidate() => setState(() {
         result = null;
         error = null;
@@ -58,6 +60,8 @@ class _WorkspaceState extends State<Workspace> {
       final r = preview(input.text,
           grid: double.parse(grid.text),
           minimum: int.parse(minimum.text),
+          protectCells: useZone && protectCells,
+          auditRoute: auditRoute,
           zone: useZone
               ? (
                   lon: double.parse(lon.text),
@@ -84,6 +88,7 @@ class _WorkspaceState extends State<Workspace> {
   @override
   Widget build(BuildContext context) {
     final receipt = result?['receipt'] as Map?;
+    final route = result?['routeAudit'] as Map?;
     return Scaffold(
         appBar: AppBar(title: const Text('GoreeCloud Locations')),
         body: SafeArea(
@@ -136,13 +141,28 @@ class _WorkspaceState extends State<Workspace> {
                       if (useZone) ...[
                         number('Longitude', lon),
                         number('Latitude', lat),
-                        number('Radius (km)', radius)
+                        number('Radius (km)', radius),
+                        SwitchListTile(
+                            title: const Text(
+                                'Suppress cells that may overlap the zone (recommended)'),
+                            value: protectCells,
+                            onChanged: (v) {
+                              protectCells = v;
+                              invalidate();
+                            })
                       ],
+                      SwitchListTile(
+                          title: const Text('Audit route timing (local only)'),
+                          value: auditRoute,
+                          onChanged: (v) {
+                            auditRoute = v;
+                            invalidate();
+                          }),
                       FilledButton(
                           onPressed: input.text.isEmpty ? null : run,
                           child: const Text('Preview privacy export')),
                       const Text(
-                          'Aggregation is not anonymity. Zone removes points, not whole overlapping cells. Review before sharing.'),
+                          'Aggregation is not anonymity. Enhanced protection suppresses potentially overlapping cells. Review before sharing.'),
                       const SizedBox(height: 24),
                       Text('3. Disclosure receipt',
                           style: Theme.of(context).textTheme.titleLarge),
@@ -155,6 +175,15 @@ class _WorkspaceState extends State<Workspace> {
                           ListTile(
                               title: Text(e.key.toString()),
                               trailing: Text(e.value.toString())),
+                        if (route != null) ...[
+                          const Text('Route integrity'),
+                          for (final e in route.entries)
+                            ListTile(
+                                title: Text(e.key.toString()),
+                                trailing: Text(e.value.toString())),
+                          const Text(
+                              'Input order; integer Unix seconds only. Speeds above 350 km/h are review flags, not proof of invalid data. Not exported.'),
+                        ],
                         OutlinedButton(
                             onPressed: () async {
                               final yes = await showDialog<bool>(
