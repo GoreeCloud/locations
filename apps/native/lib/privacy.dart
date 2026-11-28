@@ -16,6 +16,8 @@ double distanceKm(num a, num b, num c, num d) {
 Map<String, dynamic> preview(String input,
     {double grid = .1,
     int minimum = 10,
+    bool protectCells = false,
+    bool auditRoute = false,
     ({double lon, double lat, double radius})? zone}) {
   if (input.length > 8 * 1024 * 1024 ||
       !grid.isFinite ||
@@ -41,6 +43,11 @@ Map<String, dynamic> preview(String input,
   final counts = <(int, int), int>{};
   final unique = <(num, num)>{};
   var excluded = 0;
+  var timedPoints = 0,
+      untimedPoints = 0,
+      nonIncreasingTimestamps = 0,
+      highSpeedSegments = 0;
+  ({num lon, num lat, int t})? previous;
   for (final f in points) {
     if (f is! Map ||
         f['type'] != 'Feature' ||
@@ -57,6 +64,31 @@ Map<String, dynamic> preview(String input,
       throw const FormatException('Invalid coordinates');
     }
     final lon = p[0] as num, lat = p[1] as num;
+    if (auditRoute) {
+      final props = f['properties'];
+      final t = props is Map ? props['timestamp'] : null;
+      if (t is! num ||
+          !t.isFinite ||
+          t < 0 ||
+          t > 4102444800 ||
+          t != t.truncate()) {
+        untimedPoints++;
+        previous = null;
+      } else {
+        timedPoints++;
+        final last = previous;
+        if (last != null) {
+          final dt = t - last.t;
+          if (dt <= 0) {
+            nonIncreasingTimestamps++;
+          } else if (distanceKm(last.lon, last.lat, lon, lat) * 3600 / dt >
+              350) {
+            highSpeedSegments++;
+          }
+        }
+        previous = (lon: lon, lat: lat, t: t.toInt());
+      }
+    }
     if (zone != null &&
         distanceKm(lon, lat, zone.lon, zone.lat) <= zone.radius) {
       excluded++;
@@ -67,18 +99,27 @@ Map<String, dynamic> preview(String input,
     final y = math.min(((lat + 90) / grid).floor(), (180 / grid).ceil() - 1);
     counts.update((x, y), (v) => v + 1, ifAbsent: () => 1);
   }
-  var suppressed = 0, retained = 0;
+  var suppressed = 0, retained = 0, protectedCellPoints = 0;
   final features = <Map<String, dynamic>>[];
   double round(num n) => double.parse(n.toStringAsFixed(8));
   for (final entry in counts.entries) {
     final count = entry.value;
+    final w = round(-180 + entry.key.$1 * grid),
+        s = round(-90 + entry.key.$2 * grid);
+    final e = math.min(180, round(w + grid)), n = math.min(90, round(s + grid));
+    if (zone != null &&
+        protectCells &&
+        distanceKm((w + e) / 2, (s + n) / 2, zone.lon, zone.lat) <=
+            zone.radius +
+                6371 * math.pi / 180 * ((e - w + n - s) / 2) +
+                0.00001) {
+      protectedCellPoints += count;
+      continue;
+    }
     if (count < minimum) {
       suppressed += count;
       continue;
     }
-    final w = round(-180 + entry.key.$1 * grid),
-        s = round(-90 + entry.key.$2 * grid);
-    final e = math.min(180, round(w + grid)), n = math.min(90, round(s + grid));
     features.add({
       'type': 'Feature',
       'geometry': {
@@ -104,8 +145,16 @@ Map<String, dynamic> preview(String input,
       'suppressed': suppressed,
       'retained': retained,
       'cells': features.length,
-      'repeatCoordinates': points.length - excluded - unique.length
+      'repeatCoordinates': points.length - excluded - unique.length,
+      if (protectCells) 'protectedCellPoints': protectedCellPoints
     },
+    if (auditRoute)
+      'routeAudit': {
+        'timedPoints': timedPoints,
+        'untimedPoints': untimedPoints,
+        'nonIncreasingTimestamps': nonIncreasingTimestamps,
+        'highSpeedSegments': highSpeedSegments
+      },
     'export': {'type': 'FeatureCollection', 'features': features}
   };
 }
