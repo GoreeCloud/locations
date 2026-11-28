@@ -1,0 +1,1 @@
+{"name":"goreecloud-locations-web","version":"0.1.0","private":true,"type":"module","license":"AGPL-3.0-only","scripts":{"build":"vite build","test":"node --test src/privacy.test.js","dev":"vite --host 127.0.0.1"},"dependencies":{"react":"19.2.0","react-dom":"19.2.0"},"devDependencies":{"vite":"7.3.8"}}
