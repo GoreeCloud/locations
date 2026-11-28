@@ -1,0 +1,195 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'privacy.dart';
+
+void main() => runApp(const LocationsApp());
+
+class LocationsApp extends StatelessWidget {
+  const LocationsApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+      title: 'GoreeCloud Locations',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xff2346ca),
+              surface: const Color(0xffffffff)),
+          scaffoldBackgroundColor: const Color(0xfff6f7fb)),
+      darkTheme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xffbfcbff), brightness: Brightness.dark)),
+      home: const Workspace());
+}
+
+class Workspace extends StatefulWidget {
+  const Workspace({super.key});
+  @override
+  State<Workspace> createState() => _WorkspaceState();
+}
+
+class _WorkspaceState extends State<Workspace> {
+  final input = TextEditingController(),
+      grid = TextEditingController(text: '0.1'),
+      minimum = TextEditingController(text: '10'),
+      lon = TextEditingController(),
+      lat = TextEditingController(),
+      radius = TextEditingController(text: '1');
+  Map<String, dynamic>? result;
+  String? error;
+  bool useZone = false;
+  void invalidate() => setState(() {
+        result = null;
+        error = null;
+      });
+  @override
+  void dispose() {
+    for (final c in [input, grid, minimum, lon, lat, radius]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void run() {
+    invalidate();
+    try {
+      final r = preview(input.text,
+          grid: double.parse(grid.text),
+          minimum: int.parse(minimum.text),
+          zone: useZone
+              ? (
+                  lon: double.parse(lon.text),
+                  lat: double.parse(lat.text),
+                  radius: double.parse(radius.text)
+                )
+              : null);
+      setState(() => result = r);
+    } catch (_) {
+      setState(() => error =
+          'Could not process input. Check GeoJSON, limits and privacy settings.');
+    }
+  }
+
+  Widget number(String label, TextEditingController c) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+          controller: c,
+          decoration: InputDecoration(
+              labelText: label, border: const OutlineInputBorder()),
+          keyboardType: const TextInputType.numberWithOptions(
+              decimal: true, signed: true),
+          onChanged: (_) => invalidate()));
+  @override
+  Widget build(BuildContext context) {
+    final receipt = result?['receipt'] as Map?;
+    return Scaffold(
+        appBar: AppBar(title: const Text('GoreeCloud Locations')),
+        body: SafeArea(
+            child: Center(
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 900),
+                    child:
+                        ListView(padding: const EdgeInsets.all(24), children: [
+                      Text('Privacy workspace',
+                          style: Theme.of(context).textTheme.headlineMedium),
+                      const Text(
+                          'Development preview · Local processing only. No location permission or network account required.'),
+                      const SizedBox(height: 24),
+                      Text('1. Location history',
+                          style: Theme.of(context).textTheme.titleLarge),
+                      OutlinedButton(
+                          onPressed: () {
+                            input.text = sample();
+                            invalidate();
+                          },
+                          child: const Text('Load synthetic sample')),
+                      TextField(
+                          controller: input,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                              labelText: 'Paste Point GeoJSON (8 MiB maximum)',
+                              border: OutlineInputBorder()),
+                          onChanged: (_) => invalidate()),
+                      OutlinedButton(
+                          onPressed: () {
+                            input.clear();
+                            lon.clear();
+                            lat.clear();
+                            useZone = false;
+                            invalidate();
+                          },
+                          child: const Text('Clear private data')),
+                      const SizedBox(height: 24),
+                      Text('2. Privacy controls',
+                          style: Theme.of(context).textTheme.titleLarge),
+                      number('Grid size (degrees)', grid),
+                      number('Minimum points per cell', minimum),
+                      SwitchListTile(
+                          title: const Text('Exclude a sensitive area'),
+                          value: useZone,
+                          onChanged: (v) {
+                            useZone = v;
+                            invalidate();
+                          }),
+                      if (useZone) ...[
+                        number('Longitude', lon),
+                        number('Latitude', lat),
+                        number('Radius (km)', radius)
+                      ],
+                      FilledButton(
+                          onPressed: input.text.isEmpty ? null : run,
+                          child: const Text('Preview privacy export')),
+                      const Text(
+                          'Aggregation is not anonymity. Zone removes points, not whole overlapping cells. Review before sharing.'),
+                      const SizedBox(height: 24),
+                      Text('3. Disclosure receipt',
+                          style: Theme.of(context).textTheme.titleLarge),
+                      if (error != null)
+                        Text(error!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error)),
+                      if (receipt != null) ...[
+                        for (final e in receipt.entries)
+                          ListTile(
+                              title: Text(e.key.toString()),
+                              trailing: Text(e.value.toString())),
+                        OutlinedButton(
+                            onPressed: () async {
+                              final yes = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                          title: const Text(
+                                              'Copy aggregate export?'),
+                                          content: const Text(
+                                              'The system clipboard may be accessible to other apps. This exports aggregate cells, not the receipt.'),
+                                          actions: [
+                                            TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, false),
+                                                child: const Text('Cancel')),
+                                            FilledButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, true),
+                                                child: const Text('Copy'))
+                                          ]));
+                              if (yes == true && mounted && result != null) {
+                                await Clipboard.setData(ClipboardData(
+                                    text: jsonEncode(result!['export'])));
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Aggregate copied')));
+                                }
+                              }
+                            },
+                            child: const Text('Copy aggregate GeoJSON')),
+                      ] else
+                        const Text('No result yet.'),
+                      const SizedBox(height: 16),
+                      const Text(
+                          'Independent Dawarich import in development · AGPL-3.0'),
+                    ])))));
+  }
+}
