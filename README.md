@@ -2,7 +2,7 @@
 
 Privacy-first, self-hosted location intelligence for individuals and families.
 
-**Development status:** rebranded import in progress. The full Dawarich derivative is staged locally and is not yet included here. This repository provides the independently authored offline Private Grid Export CLI and web/native privacy workspace previews. It is not a full location-history server, stable release, or production deployment.
+**Development status:** rebranded import in progress. The full Dawarich derivative is staged locally and is not yet included here. This repository provides the independently authored offline Private Grid Export CLI and web/native privacy workspace previews with optional explicit read-only server retrieval. It is not a full location-history server, stable release, or production deployment.
 
 ## Private Grid Export
 
@@ -31,10 +31,10 @@ No subscriptions, mandatory license fees, artificial seat limits, paid feature t
 
 ## Applications (development preview)
 
-- `apps/web`: React browser application; locally process a file or pasted Point GeoJSON. Run `npm ci --ignore-scripts`, `npm test`, `npm run build` in that directory. Serve the generated `dist/` on a local static server; production CSP denies network connections. No external map resources.
-- `apps/native`: Flutter native Linux and Android workspace. See its README for build/test commands. Paste or load synthetic GeoJSON, preview and explicitly copy aggregate output. No location collection, server sync or account access yet.
+- `apps/web`: React browser application; locally process a file or pasted Point GeoJSON. Run `npm ci --ignore-scripts`, `npm test`, `npm run build` in that directory. Serve the generated `dist/` on a local static server; production CSP limits network connections to the same origin. No external map resources.
+- `apps/native`: Flutter native Linux and Android workspace. See its README for build/test commands. Paste or load synthetic GeoJSON, preview and explicitly copy aggregate output. No location collection or automatic sync.
 
-Both implement optional radius-based Privacy Zone exclusion, sparse cell suppression, a disclosure receipt (input/excluded/suppressed/retained counts), repeat-coordinate count, and explicit export. Privacy zones are not saved. Counts can still disclose sensitive patterns, repeated measurements are not independent people, and point-only mode may export cells overlapping excluded areas. Enhanced zone protection (default when enabling a zone) conservatively suppresses any potentially overlapping cell using a spherical distance upper bound; it may suppress additional cells. Separate local-only route integrity diagnostics count missing/non-increasing Unix-second timestamps and segments above 350 km/h in input order; they are optional review flags, not automatic deletion or proof of invalid movement. The receipt is not exported. The apps are independent first-party preview clients and do not yet contain or connect to the complete Dawarich server.
+Both implement optional radius-based Privacy Zone exclusion, sparse cell suppression, a disclosure receipt (input/excluded/suppressed/retained counts), repeat-coordinate count, and explicit export. Privacy zones are not saved. Counts can still disclose sensitive patterns, repeated measurements are not independent people, and point-only mode may export cells overlapping excluded areas. Enhanced zone protection (default when enabling a zone) conservatively suppresses any potentially overlapping cell using a spherical distance upper bound; it may suppress additional cells. Separate local-only route integrity diagnostics count missing/non-increasing Unix-second timestamps and segments above 350 km/h in input order; they are optional review flags, not automatic deletion or proof of invalid movement. The receipt is not exported. The apps are independent first-party preview clients and do not yet contain the complete Dawarich server.
 
 GoreeCloud UI semantic colors and spacing were selected from the alpha candidate tokens at `cc3e1042dcb13a1c821661ba232c734f230237b6`; see `docs/GC-UI-LICENSE.txt`. Full component adoption, accessibility review and all remaining MIPS integrations are pending. Flutter-generated scaffolding is subject to its BSD license (see `docs/FLUTTER-LICENSE.txt`); npm and Dart dependencies retain their respective licenses.
 
@@ -44,4 +44,8 @@ The web and native clients accept Point GeoJSON or strict numeric CSV with heade
 
 ### Dawarich interoperability
 
-Clients also accept the upstream points API JSON array (latitude and longitude as decimal strings or numbers, timestamp as integer Unix seconds). Only these three fields are imported; IDs, tracker metadata and other attributes are discarded. This is an explicit offline file/paste workflow, not direct network synchronization. A staged server export endpoint is under qualification and is not included in this public repository.
+Clients also accept the upstream points API JSON array (latitude and longitude as decimal strings or numbers, timestamp as integer Unix seconds). Only these three fields are imported; IDs, tracker metadata and other attributes are discarded. This file/paste workflow remains available offline. A staged server export endpoint is under qualification and is not included in this public repository.
+
+### Optional private server retrieval (0.1.4)
+
+The web client requests only the same-origin `/api/v1/privacy_history` endpoint from a secure browser origin. For a server installation build with `npm run build -- --base=/locations-workspace/` and serve dist under that same server path. Linux and Android accept an explicitly entered HTTPS origin; Android declares INTERNET but disallows cleartext traffic and requests no GPS permission. Access keys are cleared from inputs before transfer, never intentionally persisted, and sent only in Authorization headers; redirects are rejected. Transfers require a deliberate button press, are bounded to 31 days, 20,000 points, 8 MiB and 30 seconds, and may be cancelled. The user must verify the server identity before entering a key. No automatic synchronization, background tracking or account requirement for offline processing. Server integration is staged; a deployed endpoint is not yet available.

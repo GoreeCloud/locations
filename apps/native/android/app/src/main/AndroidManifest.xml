@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:usesCleartextTraffic="false"
         android:label="GoreeCloud Locations" android:allowBackup="false"
         android:name="${applicationName}"
         android:icon="@drawable/locations_preview_icon">

@@ -47,3 +47,17 @@ test('Dawarich API point array imports only coordinates and timestamps',()=>{
 test('Dawarich array rejects malformed or ambiguous point data',()=>{
  for(const row of [{longitude:'',latitude:'0',timestamp:100},{longitude:'0',latitude:'NaN',timestamp:100},{longitude:0,latitude:0,timestamp:'100'},{longitude:0,latitude:0,timestamp:1700000000000},{longitude:181,latitude:0,timestamp:100},null]) assert.throws(()=>normalizeHistory(JSON.stringify([row])))
 })
+import {historyPath,validateServerHistory,fetchHistory} from './server_history.js'
+test('server history uses bounded same-origin path and minimal point payload',()=>{
+ assert.equal(historyPath('100','200'),'/api/v1/privacy_history?start_at=100&end_at=200')
+ for(const [a,b] of [['0','3000000'],['200','100'],['1x','200'],['100','1700000000000']])assert.throws(()=>historyPath(a,b))
+ const raw=JSON.stringify({type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Point',coordinates:[10,20]},properties:{timestamp:150,private:'discard'},id:1}]})
+ assert.deepEqual(JSON.parse(validateServerHistory(raw)).features[0],{type:'Feature',geometry:{type:'Point',coordinates:[10,20]},properties:{timestamp:150}})
+})
+test('explicit server retrieval blocks redirects and cookies and rejects invalid responses',async()=>{
+ const key='a'.repeat(64), raw='{"type":"FeatureCollection","features":[]}'
+ const result=await fetchHistory('100','200',key,{fetcher:async(path,opts)=>{assert.equal(path,'/api/v1/privacy_history?start_at=100&end_at=200');assert.equal(opts.credentials,'omit');assert.equal(opts.redirect,'error');assert.equal(opts.headers.Authorization,'Bearer '+key);return new Response(raw,{headers:{'content-type':'application/geo+json'}})}})
+ assert.equal(result,raw)
+ await assert.rejects(()=>fetchHistory('100','200',key,{fetcher:async()=>new Response(raw,{headers:{'content-type':'text/html'}})}))
+ await assert.rejects(()=>fetchHistory('100','200','bad',{fetcher:()=>assert.fail('network called')}))
+})
