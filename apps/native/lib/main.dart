@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'privacy.dart';
+import 'history.dart';
 
 void main() => runApp(const LocationsApp());
 
@@ -57,7 +58,7 @@ class _WorkspaceState extends State<Workspace> {
   void run() {
     invalidate();
     try {
-      final r = preview(input.text,
+      final r = preview(normalizeHistory(input.text),
           grid: double.parse(grid.text),
           minimum: int.parse(minimum.text),
           protectCells: useZone && protectCells,
@@ -72,7 +73,7 @@ class _WorkspaceState extends State<Workspace> {
       setState(() => result = r);
     } catch (_) {
       setState(() => error =
-          'Could not process input. Check GeoJSON, limits and privacy settings.');
+          'Could not process input. Check GeoJSON or CSV, limits and privacy settings.');
     }
   }
 
@@ -110,11 +111,14 @@ class _WorkspaceState extends State<Workspace> {
                             invalidate();
                           },
                           child: const Text('Load synthetic sample')),
+                      const Text(
+                          'CSV header: longitude,latitude or longitude,latitude,timestamp (Unix seconds). No quoted fields or extra columns.'),
                       TextField(
                           controller: input,
                           maxLines: 5,
                           decoration: const InputDecoration(
-                              labelText: 'Paste Point GeoJSON (8 MiB maximum)',
+                              labelText:
+                                  'Paste Point GeoJSON or CSV (8 MiB maximum)',
                               border: OutlineInputBorder()),
                           onChanged: (_) => invalidate()),
                       OutlinedButton(
