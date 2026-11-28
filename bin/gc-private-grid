@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'json'
+require 'optparse'
+require 'tempfile'
+require_relative '../lib/goreecloud_locations/private_grid'
+
+options = { grid_degrees: 0.1, minimum_points: 10 }
+parser = OptionParser.new do |p|
+  p.banner = 'Usage: bin/gc-private-grid [options] INPUT.geojson OUTPUT.geojson'
+  p.on('--grid-degrees N', Float) { |n| options[:grid_degrees] = n }
+  p.on('--minimum-points N', Integer) { |n| options[:minimum_points] = n }
+end
+begin
+  parser.parse!
+  raise ArgumentError, parser.banner unless ARGV.length == 2
+
+  input, output = ARGV
+  max_bytes = 64 * 1024 * 1024
+  data = File.open(input, 'rb') { |f| f.read(max_bytes + 1) }
+  raise ArgumentError, 'empty or oversized input (64 MiB maximum)' if data.nil? || data.bytesize > max_bytes
+  result = GoreeCloudLocations::PrivateGrid.call(JSON.parse(data), **options)
+  # Publish only a complete new file, never overwrite an original or symlink.
+  Tempfile.create(['.gc-grid-', '.tmp'], File.dirname(File.expand_path(output))) do |f|
+    f.chmod(0o600)
+    f.write(JSON.generate(result) + "\n")
+    f.flush
+    f.fsync
+    File.link(f.path, output)
+  end
+rescue ArgumentError, JSON::ParserError, SystemCallError => e
+  warn "Private grid failed: #{e.class}"
+  exit 1
+end
